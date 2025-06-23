@@ -1,7 +1,6 @@
 "use client"
 
 import { supabase } from "./supabase"
-import type { UserEvent } from "./user-event" // Declare or import UserEvent
 
 export interface AnalyticsData {
   overview: {
@@ -32,15 +31,30 @@ export interface AnalyticsData {
   }
 }
 
+export interface UserEvent {
+  userId: string
+  eventType: string
+  eventData: Record<string, any>
+  timestamp: string
+  sessionId: string
+  userAgent: string
+  page: string
+}
+
 export class AnalyticsService {
-  private static instance: AnalyticsService
+  private static instance: AnalyticsService | null = null
   private sessionId: string
   private sessionStart: number
+  private isClient: boolean
 
   private constructor() {
+    this.isClient = typeof window !== "undefined"
     this.sessionId = this.generateSessionId()
-    this.sessionStart = Date.now()
-    this.initializeSession()
+    this.sessionStart = this.isClient ? Date.now() : 0
+
+    if (this.isClient) {
+      this.initializeSession()
+    }
   }
 
   static getInstance(): AnalyticsService {
@@ -55,6 +69,8 @@ export class AnalyticsService {
   }
 
   private initializeSession() {
+    if (!this.isClient) return
+
     // Track session start
     this.trackEvent("session_start", {
       timestamp: new Date().toISOString(),
@@ -87,6 +103,8 @@ export class AnalyticsService {
   }
 
   async trackEvent(eventType: string, eventData: Record<string, any> = {}, userId?: string) {
+    if (!this.isClient) return
+
     try {
       const event: Omit<UserEvent, "id"> = {
         userId: userId || "anonymous",
@@ -124,6 +142,8 @@ export class AnalyticsService {
 
   // Enhanced tracking methods
   async trackPageView(page: string, userId?: string) {
+    if (!this.isClient) return
+
     await this.trackEvent(
       "page_view",
       {
@@ -220,6 +240,8 @@ export class AnalyticsService {
   }
 
   async exportAnalyticsData(userId: string, timeRange: string): Promise<void> {
+    if (!this.isClient) return
+
     const data = await this.getAnalyticsData(userId, timeRange)
     const dataStr = JSON.stringify(data, null, 2)
     const dataBlob = new Blob([dataStr], { type: "application/json" })
@@ -230,20 +252,12 @@ export class AnalyticsService {
     link.click()
     URL.revokeObjectURL(url)
   }
+}
 
-  // Track events
-  trackEvent(eventName: string, properties?: Record<string, any>): void {
-    if (typeof window !== "undefined" && window.gtag) {
-      window.gtag("event", eventName, properties)
-    }
+// Create a safe instance getter that can be used in both client and server
+export const getAnalyticsService = (): AnalyticsService | null => {
+  if (typeof window === "undefined") {
+    return null
   }
-
-  // Track page views
-  trackPageView(path: string): void {
-    if (typeof window !== "undefined" && window.gtag) {
-      window.gtag("config", "GA_MEASUREMENT_ID", {
-        page_path: path,
-      })
-    }
-  }
+  return AnalyticsService.getInstance()
 }

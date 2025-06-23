@@ -1,26 +1,33 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect } from "react"
 import { usePathname } from "next/navigation"
-import { AnalyticsService } from "@/lib/analytics-service"
+import { getAnalyticsService } from "@/lib/analytics-service"
 import { AnalyticsProvider } from "./analytics-provider"
-import type { AuthUser } from "@/lib/auth-supabase"
 
 interface EnhancedAnalyticsProviderProps {
   children: React.ReactNode
-  user?: AuthUser | null
 }
 
-export function EnhancedAnalyticsProvider({ children, user }: EnhancedAnalyticsProviderProps) {
+export function EnhancedAnalyticsProvider({ children }: EnhancedAnalyticsProviderProps) {
   const pathname = usePathname()
-  const analyticsService = AnalyticsService.getInstance()
+  const analyticsService = getAnalyticsService()
+
+  useEffect(() => {
+    // Initialize analytics only on client side
+    if (analyticsService) {
+      // Analytics is now initialized
+      console.log("Analytics initialized")
+    }
+  }, [])
 
   useEffect(() => {
     // Track page views
-    analyticsService.trackPageView(pathname, user?.id)
-  }, [pathname, user?.id])
+    if (analyticsService) {
+      analyticsService.trackPageView(pathname)
+    }
+  }, [pathname])
 
   useEffect(() => {
     // Track performance metrics
@@ -28,8 +35,8 @@ export function EnhancedAnalyticsProvider({ children, user }: EnhancedAnalyticsP
       // Page load time
       if (typeof window !== "undefined" && window.performance) {
         const loadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart
-        if (loadTime > 0) {
-          analyticsService.trackPerformance("page_load_time", loadTime, user?.id)
+        if (loadTime > 0 && analyticsService) {
+          analyticsService.trackPerformance("page_load_time", loadTime)
         }
       }
 
@@ -49,27 +56,23 @@ export function EnhancedAnalyticsProvider({ children, user }: EnhancedAnalyticsP
 
     // Track errors
     const handleError = (event: ErrorEvent) => {
-      analyticsService.trackError(
-        "javascript_error",
-        {
+      if (analyticsService) {
+        analyticsService.trackError("javascript_error", {
           message: event.message,
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,
           stack: event.error?.stack,
-        },
-        user?.id,
-      )
+        })
+      }
     }
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      analyticsService.trackError(
-        "unhandled_promise_rejection",
-        {
+      if (analyticsService) {
+        analyticsService.trackError("unhandled_promise_rejection", {
           reason: event.reason?.toString(),
-        },
-        user?.id,
-      )
+        })
+      }
     }
 
     window.addEventListener("error", handleError)
@@ -80,7 +83,7 @@ export function EnhancedAnalyticsProvider({ children, user }: EnhancedAnalyticsP
       window.removeEventListener("error", handleError)
       window.removeEventListener("unhandledrejection", handleUnhandledRejection)
     }
-  }, [user?.id])
+  }, [])
 
   return <AnalyticsProvider>{children}</AnalyticsProvider>
 }
