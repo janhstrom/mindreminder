@@ -147,3 +147,9 @@ export class SupabaseAuthService {
     return stored ? JSON.parse(stored) : []
   }
 }
+
+// Export helper function for getting current user
+export async function getUser(): Promise<AuthUser | null> {
+  const authService = SupabaseAuthService.getInstance()
+  return await authService.getCurrentUser()
+}
