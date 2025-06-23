@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [microActions, setMicroActions] = useState<MicroAction[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("inspiration")
   const [showReminderForm, setShowReminderForm] = useState(false)
@@ -42,32 +43,45 @@ export default function DashboardPage() {
 
   const initializeAuth = async () => {
     try {
+      console.log("🔍 Starting auth initialization...")
       setLoading(true)
+      setError(null)
 
       // Check if user is already authenticated
+      console.log("🔍 Checking current user...")
       const currentUser = await authService.getCurrentUser()
+      console.log("🔍 Current user result:", currentUser)
 
       if (!currentUser) {
-        // Redirect to home page if not authenticated
+        console.log("❌ No authenticated user found, redirecting to home")
         router.push("/")
         return
       }
 
+      console.log("✅ User authenticated:", currentUser.email)
       setUser(currentUser)
+
+      console.log("🔍 Loading dashboard data...")
       await loadDashboardData(currentUser)
 
       // Listen for auth state changes
+      console.log("🔍 Setting up auth state listener...")
       authService.onAuthStateChange((user) => {
+        console.log("🔍 Auth state changed:", user?.email || "null")
         if (!user) {
+          console.log("❌ User logged out, redirecting to home")
           router.push("/")
         } else {
           setUser(user)
           loadDashboardData(user)
         }
       })
+
+      console.log("✅ Auth initialization complete")
     } catch (error) {
-      console.error("Auth initialization error:", error)
-      router.push("/")
+      console.error("❌ Auth initialization error:", error)
+      setError(error instanceof Error ? error.message : "Authentication failed")
+      // Don't redirect on error, show error state instead
     } finally {
       setLoading(false)
     }
@@ -75,22 +89,33 @@ export default function DashboardPage() {
 
   const loadDashboardData = async (currentUser: AuthUser) => {
     try {
-      console.log("Loading dashboard data for user:", currentUser.id)
+      console.log("🔍 Loading dashboard data for user:", currentUser.id)
 
       // Load reminders and micro-actions in parallel
       const [userReminders, userMicroActions, microActionStats] = await Promise.all([
-        getReminders(currentUser.id),
-        microActionService.getMicroActions(currentUser.id),
-        microActionService.getMicroActionStats(currentUser.id),
+        getReminders(currentUser.id).catch((err) => {
+          console.error("❌ Error loading reminders:", err)
+          return []
+        }),
+        microActionService.getMicroActions(currentUser.id).catch((err) => {
+          console.error("❌ Error loading micro-actions:", err)
+          return []
+        }),
+        microActionService.getMicroActionStats(currentUser.id).catch((err) => {
+          console.error("❌ Error loading stats:", err)
+          return { totalActive: 0, completedToday: 0, currentStreaks: [], weeklyCompletions: 0 }
+        }),
       ])
 
       setReminders(userReminders || [])
       setMicroActions(userMicroActions || [])
       setStats(microActionStats)
 
-      console.log("Dashboard loaded successfully")
+      console.log("✅ Dashboard data loaded successfully")
+      console.log("📊 Stats:", { reminders: userReminders?.length, microActions: userMicroActions?.length })
     } catch (err) {
-      console.error("Error loading dashboard:", err)
+      console.error("❌ Error loading dashboard:", err)
+      setError("Failed to load dashboard data")
     }
   }
 
@@ -162,6 +187,7 @@ export default function DashboardPage() {
     }
   }
 
+  // Show loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -170,12 +196,55 @@ export default function DashboardPage() {
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Loading MindReMinder...</h2>
             <p className="text-muted-foreground">Setting up your personal reminder space</p>
+            <p className="text-xs text-muted-foreground">Check browser console for debug info</p>
           </div>
+          {/* Emergency bypass button for debugging */}
+          <Button
+            variant="outline"
+            onClick={() => {
+              console.log("🚨 Emergency bypass activated")
+              setLoading(false)
+              setError("Debug mode - check console")
+            }}
+            className="mt-4"
+          >
+            Debug Mode (Emergency)
+          </Button>
         </div>
       </div>
     )
   }
 
+  // Show error state
+  if (error) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md">
+          <h2 className="text-xl font-semibold text-destructive">Authentication Error</h2>
+          <p className="text-muted-foreground">{error}</p>
+          <div className="space-y-2">
+            <Button onClick={() => router.push("/")} className="w-full">
+              Go to Sign In
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setError(null)
+                setLoading(true)
+                initializeAuth()
+              }}
+              className="w-full"
+            >
+              Try Again
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">Check browser console for more details</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show auth required state
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -222,7 +291,7 @@ export default function DashboardPage() {
           <div className="mb-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Welcome back, {user.firstName}! ✨</h1>
+                <h1 className="text-3xl font-bold">Welcome back, {user.firstName || user.email}! ✨</h1>
                 <p className="text-muted-foreground mt-2">Your personal space for inspiration and habit building</p>
               </div>
               <div className="flex gap-2">
@@ -285,6 +354,17 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground">micro-actions done</p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Debug Info */}
+          <div className="mb-4 p-4 bg-muted/50 rounded-lg text-sm">
+            <p>
+              <strong>Debug Info:</strong>
+            </p>
+            <p>User ID: {user.id}</p>
+            <p>Email: {user.email}</p>
+            <p>Reminders: {reminders.length}</p>
+            <p>Micro-actions: {microActions.length}</p>
           </div>
 
           {/* Main Content Tabs */}
@@ -439,155 +519,18 @@ export default function DashboardPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Today's Micro-Actions */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <Target className="h-5 w-5 mr-2 text-primary" />
-                        Today's Micro-Actions
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {microActions.map((action) => (
-                        <MicroActionCard
-                          key={action.id}
-                          microAction={action}
-                          onComplete={handleMicroActionComplete}
-                          onEdit={handleMicroActionEdit}
-                          onDelete={handleMicroActionDelete}
-                        />
-                      ))}
-                    </CardContent>
-                  </Card>
-
-                  {/* Progress & Insights */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center">
-                        <TrendingUp className="h-5 w-5 mr-2 text-primary" />
-                        Your Progress
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="text-sm font-medium">Weekly Goal</span>
-                          <span className="text-sm text-muted-foreground">
-                            {stats.weeklyCompletions}/{totalMicroActions * 7} actions
-                          </span>
-                        </div>
-                        <div className="w-full bg-secondary rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full"
-                            style={{
-                              width: `${Math.min(100, (stats.weeklyCompletions / (totalMicroActions * 7)) * 100)}%`,
-                            }}
-                          ></div>
-                        </div>
-                        <p className="text-xs text-primary mt-1">
-                          {Math.round((stats.weeklyCompletions / (totalMicroActions * 7)) * 100)}% complete - keep it
-                          up!
-                        </p>
-                      </div>
-
-                      <div className="bg-primary/10 p-4 rounded-lg">
-                        <h3 className="font-semibold mb-2">🎯 Habit Insight</h3>
-                        <p className="text-sm">
-                          {maxStreak > 0
-                            ? `Amazing! Your best streak is ${maxStreak} days. Consistency is building your habits!`
-                            : "Start your first micro-action today to begin building momentum!"}
-                        </p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <h4 className="font-medium">Quick Micro-Actions</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-auto p-3 text-left"
-                            onClick={() => setShowMicroActionForm(true)}
-                          >
-                            <div>
-                              <div className="font-medium text-xs">💧 Hydration</div>
-                              <div className="text-xs text-muted-foreground">30 sec</div>
-                            </div>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-auto p-3 text-left"
-                            onClick={() => setShowMicroActionForm(true)}
-                          >
-                            <div>
-                              <div className="font-medium text-xs">📚 Learning</div>
-                              <div className="text-xs text-muted-foreground">2 min</div>
-                            </div>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-auto p-3 text-left"
-                            onClick={() => setShowMicroActionForm(true)}
-                          >
-                            <div>
-                              <div className="font-medium text-xs">🧘 Mindfulness</div>
-                              <div className="text-xs text-muted-foreground">1 min</div>
-                            </div>
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-auto p-3 text-left"
-                            onClick={() => setShowMicroActionForm(true)}
-                          >
-                            <div>
-                              <div className="font-medium text-xs">💪 Movement</div>
-                              <div className="text-xs text-muted-foreground">30 sec</div>
-                            </div>
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                <div className="space-y-4">
+                  {microActions.map((action) => (
+                    <MicroActionCard
+                      key={action.id}
+                      microAction={action}
+                      onComplete={handleMicroActionComplete}
+                      onEdit={handleMicroActionEdit}
+                      onDelete={handleMicroActionDelete}
+                    />
+                  ))}
                 </div>
               )}
-
-              {/* Habit Categories */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl mb-2">🌱</div>
-                    <h3 className="font-semibold text-green-800 dark:text-green-200">Health</h3>
-                    <p className="text-sm text-green-600 dark:text-green-400">Physical wellness</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-blue-200 dark:border-blue-800">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl mb-2">🧠</div>
-                    <h3 className="font-semibold text-blue-800 dark:text-blue-200">Learning</h3>
-                    <p className="text-sm text-blue-600 dark:text-blue-400">Knowledge & skills</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl mb-2">🧘</div>
-                    <h3 className="font-semibold text-purple-800 dark:text-purple-200">Mindfulness</h3>
-                    <p className="text-sm text-purple-600 dark:text-purple-400">Mental clarity</p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 border-orange-200 dark:border-orange-800">
-                  <CardContent className="p-4 text-center">
-                    <div className="text-2xl mb-2">🎯</div>
-                    <h3 className="font-semibold text-orange-800 dark:text-orange-200">Productivity</h3>
-                    <p className="text-sm text-orange-600 dark:text-orange-400">Getting things done</p>
-                  </CardContent>
-                </Card>
-              </div>
             </TabsContent>
 
             <TabsContent value="quotes">
