@@ -45,6 +45,7 @@ class AnalyticsServiceImpl {
   private sessionId: string
   private sessionStart: number
   private initialized = false
+  private analyticsEnabled = true
 
   constructor() {
     this.sessionId = this.generateSessionId()
@@ -55,10 +56,20 @@ class AnalyticsServiceImpl {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
-  initialize() {
+  async initialize() {
     if (this.initialized || typeof window === "undefined") return
 
     this.initialized = true
+
+    // Test if analytics tables exist
+    try {
+      await supabase.from("analytics_events").select("id").limit(1)
+      console.log("Analytics tables available")
+    } catch (error) {
+      console.warn("Analytics tables not available, disabling analytics:", error)
+      this.analyticsEnabled = false
+      return
+    }
 
     // Track session start
     this.trackEvent("session_start", {
@@ -92,27 +103,36 @@ class AnalyticsServiceImpl {
   }
 
   async trackEvent(eventType: string, eventData: Record<string, any> = {}, userId?: string) {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined" || !this.analyticsEnabled) return
 
     try {
-      const event: Omit<UserEvent, "id"> = {
-        userId: userId || "anonymous",
-        eventType,
-        eventData: {
+      const event = {
+        user_id: userId || null,
+        event_name: eventType,
+        event_properties: {
           ...eventData,
           sessionId: this.sessionId,
           url: window.location.href,
           referrer: document.referrer,
           timestamp: new Date().toISOString(),
         },
-        timestamp: new Date().toISOString(),
-        sessionId: this.sessionId,
-        userAgent: navigator.userAgent,
-        page: window.location.pathname,
+        session_id: this.sessionId,
+        page_path: window.location.pathname,
+        user_agent: navigator.userAgent,
+        created_at: new Date().toISOString(),
       }
 
       // Store in Supabase
-      await supabase.from("user_events").insert([event])
+      const { error } = await supabase.from("analytics_events").insert([event])
+
+      if (error) {
+        console.warn("Failed to track analytics event:", error)
+        // Disable analytics if we keep getting errors
+        if (error.code === "42P01") {
+          // Table doesn't exist
+          this.analyticsEnabled = false
+        }
+      }
 
       // Also send to Google Analytics if available
       if (typeof window !== "undefined" && window.gtag) {
@@ -125,7 +145,7 @@ class AnalyticsServiceImpl {
         })
       }
     } catch (error) {
-      console.error("Error tracking event:", error)
+      console.warn("Error tracking event:", error)
     }
   }
 
