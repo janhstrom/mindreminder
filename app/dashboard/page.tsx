@@ -25,6 +25,8 @@ import {
   type SimpleReminder,
   type SimpleMicroAction,
 } from "@/lib/dashboard-data"
+import { CreateReminderModal } from "@/components/reminders/create-reminder-modal"
+import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("inspiration")
@@ -38,6 +40,8 @@ export default function DashboardPage() {
   const [reminders, setReminders] = useState<SimpleReminder[]>([])
   const [microActions, setMicroActions] = useState<SimpleMicroAction[]>([])
   const [loading, setLoading] = useState(true)
+  const [showReminderModal, setShowReminderModal] = useState(false)
+  const [showMicroActionModal, setShowMicroActionModal] = useState(false)
 
   useEffect(() => {
     loadDashboardData()
@@ -47,8 +51,6 @@ export default function DashboardPage() {
     try {
       setLoading(true)
 
-      // For now, we'll load data without a specific user ID
-      // This will show demo data until we add authentication
       const [statsData, remindersData, microActionsData] = await Promise.all([
         DashboardDataService.getStats(),
         DashboardDataService.getReminders(),
@@ -95,11 +97,18 @@ export default function DashboardPage() {
               <p className="text-gray-600 mt-2">Your personal space for inspiration and habit building</p>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+              <Button
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                onClick={() => setShowReminderModal(true)}
+              >
                 <Bell className="h-4 w-4 mr-2" />
                 New Reminder
               </Button>
-              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+              <Button
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                onClick={() => setShowMicroActionModal(true)}
+              >
                 <Target className="h-4 w-4 mr-2" />
                 New Micro-Action
               </Button>
@@ -253,27 +262,40 @@ export default function DashboardPage() {
 
               <Card className="bg-white shadow-lg border-0">
                 <CardHeader>
-                  <CardTitle className="text-gray-900">Database Status</CardTitle>
+                  <CardTitle className="text-gray-900">Quick Actions</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                    <span className="text-sm font-medium text-green-800">Supabase Connection</span>
-                    <span className="text-green-600">✅ Connected</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                    <span className="text-sm font-medium text-blue-800">Reminders Table</span>
-                    <span className="text-blue-600">✅ Ready</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                    <span className="text-sm font-medium text-purple-800">Micro-Actions Table</span>
-                    <span className="text-purple-600">✅ Ready</span>
-                  </div>
+                <CardContent className="space-y-3">
                   <Button
-                    onClick={loadDashboardData}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                    disabled={loading}
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50"
+                    onClick={() => setShowReminderModal(true)}
                   >
-                    {loading ? "Loading..." : "Refresh Data"}
+                    <div className="text-left">
+                      <div className="font-medium">💭 Daily Affirmation</div>
+                      <div className="text-sm text-gray-500">Remind me to practice self-love</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50"
+                    onClick={() => setShowReminderModal(true)}
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">🌅 Morning Motivation</div>
+                      <div className="text-sm text-gray-500">Start my day with intention</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50"
+                    onClick={() => setShowMicroActionModal(true)}
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">🎯 Quick Habit</div>
+                      <div className="text-sm text-gray-500">Build a 2-minute micro-action</div>
+                    </div>
                   </Button>
                 </CardContent>
               </Card>
@@ -288,7 +310,10 @@ export default function DashboardPage() {
                   {loading ? "Loading..." : `${reminders.length} active reminders from your database`}
                 </p>
               </div>
-              <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+              <Button
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                onClick={() => setShowReminderModal(true)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Reminder
               </Button>
@@ -342,7 +367,10 @@ export default function DashboardPage() {
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
                     Your database is connected and ready! Create your first reminder to get started.
                   </p>
-                  <Button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700">
+                  <Button
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
+                    onClick={() => setShowReminderModal(true)}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Create First Reminder
                   </Button>
@@ -359,7 +387,10 @@ export default function DashboardPage() {
                   {loading ? "Loading..." : `${microActions.length} active micro-actions from your database`}
                 </p>
               </div>
-              <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+              <Button
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                onClick={() => setShowMicroActionModal(true)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 New Micro-Action
               </Button>
@@ -428,7 +459,10 @@ export default function DashboardPage() {
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
                     Your database is connected and ready! Create your first micro-action to start building habits.
                   </p>
-                  <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                  <Button
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                    onClick={() => setShowMicroActionModal(true)}
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Create First Habit
                   </Button>
@@ -464,6 +498,18 @@ export default function DashboardPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modals */}
+      <CreateReminderModal
+        open={showReminderModal}
+        onOpenChange={setShowReminderModal}
+        onReminderCreated={loadDashboardData}
+      />
+      <CreateMicroActionModal
+        open={showMicroActionModal}
+        onOpenChange={setShowMicroActionModal}
+        onMicroActionCreated={loadDashboardData}
+      />
     </div>
   )
 }
