@@ -1,7 +1,5 @@
 "use client"
 
-import { supabase } from "./supabase"
-
 export interface AnalyticsData {
   overview: {
     totalSessions: number
@@ -45,7 +43,7 @@ class AnalyticsServiceImpl {
   private sessionId: string
   private sessionStart: number
   private initialized = false
-  private analyticsEnabled = true
+  private analyticsEnabled = false // Disabled by default for now
 
   constructor() {
     this.sessionId = this.generateSessionId()
@@ -60,121 +58,44 @@ class AnalyticsServiceImpl {
     if (this.initialized || typeof window === "undefined") return
 
     this.initialized = true
+    console.log("Analytics service initialized (disabled for debugging)")
 
-    // Test if analytics tables exist with detailed debugging
-    try {
-      console.log("Testing analytics table connection...")
-
-      const { data, error } = await supabase.from("user_events").select("id").limit(1)
-
-      if (error) {
-        console.error("Analytics table test failed:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        })
-        this.analyticsEnabled = false
-        return
-      }
-
-      console.log("Analytics table test successful:", data)
-      this.analyticsEnabled = true
-
-      // Track session start only if analytics is working
-      await this.trackEvent("session_start", {
-        timestamp: new Date().toISOString(),
-        userAgent: navigator.userAgent,
-        screen: {
-          width: window.screen.width,
-          height: window.screen.height,
-        },
-        viewport: {
-          width: window.innerWidth,
-          height: window.innerHeight,
-        },
-      })
-    } catch (error) {
-      console.error("Analytics initialization failed:", error)
-      this.analyticsEnabled = false
-      return
-    }
+    // For now, let's skip the database test and just use local analytics
+    // We'll enable this later once we figure out the Supabase issue
 
     // Track session end on page unload
     window.addEventListener("beforeunload", () => {
-      this.trackEvent("session_end", {
-        duration: Date.now() - this.sessionStart,
-        timestamp: new Date().toISOString(),
-      })
+      console.log("Session ended, duration:", Date.now() - this.sessionStart, "ms")
     })
 
     // Track page visibility changes
     document.addEventListener("visibilitychange", () => {
-      this.trackEvent("visibility_change", {
-        hidden: document.hidden,
-        timestamp: new Date().toISOString(),
-      })
+      console.log("Visibility changed:", document.hidden ? "hidden" : "visible")
     })
   }
 
   async trackEvent(eventType: string, eventData: Record<string, any> = {}, userId?: string) {
-    if (typeof window === "undefined" || !this.analyticsEnabled) {
-      console.log("Analytics disabled, skipping event:", eventType)
-      return
-    }
+    if (typeof window === "undefined") return
 
-    try {
-      const event = {
-        user_id: userId || null,
-        event_name: eventType,
-        event_properties: {
-          ...eventData,
-          sessionId: this.sessionId,
-          url: window.location.href,
-          referrer: document.referrer,
-        },
-        session_id: this.sessionId,
-        page_path: window.location.pathname,
-        user_agent: navigator.userAgent,
-      }
+    // For now, just log to console instead of saving to database
+    console.log("Analytics Event:", {
+      eventType,
+      eventData,
+      userId,
+      sessionId: this.sessionId,
+      page: window.location.pathname,
+      timestamp: new Date().toISOString(),
+    })
 
-      console.log("Tracking event:", eventType, event)
-
-      // Store in Supabase
-      const { data, error } = await supabase.from("user_events").insert([event]).select()
-
-      if (error) {
-        console.error("Failed to track analytics event:", {
-          eventType,
-          error: {
-            code: error.code,
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-          },
-        })
-
-        // Disable analytics if we keep getting table errors
-        if (error.code === "42P01" || error.code === "PGRST116") {
-          console.warn("Disabling analytics due to table/permission errors")
-          this.analyticsEnabled = false
-        }
-      } else {
-        console.log("Analytics event tracked successfully:", eventType, data)
-      }
-
-      // Also send to Google Analytics if available
-      if (typeof window !== "undefined" && window.gtag) {
-        window.gtag("event", eventType, {
-          event_category: eventData.category || "engagement",
-          event_label: eventData.label,
-          value: eventData.value,
-          custom_parameter_1: eventData.sessionId,
-          custom_parameter_2: userId,
-        })
-      }
-    } catch (error) {
-      console.error("Error tracking event:", eventType, error)
+    // Send to Google Analytics if available
+    if (typeof window !== "undefined" && window.gtag) {
+      window.gtag("event", eventType, {
+        event_category: eventData.category || "engagement",
+        event_label: eventData.label,
+        value: eventData.value,
+        custom_parameter_1: this.sessionId,
+        custom_parameter_2: userId,
+      })
     }
   }
 
@@ -241,7 +162,7 @@ class AnalyticsServiceImpl {
   }
 
   async getAnalyticsData(userId: string, timeRange: string): Promise<AnalyticsData> {
-    // Return mock data for now
+    // Return mock data for the dashboard
     return {
       overview: {
         totalSessions: 156,
