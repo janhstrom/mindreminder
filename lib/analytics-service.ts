@@ -61,34 +61,44 @@ class AnalyticsServiceImpl {
 
     this.initialized = true
 
-    // Test if analytics tables exist
+    // Test if analytics tables exist with detailed debugging
     try {
-      const { error } = await supabase.from("user_events").select("id").limit(1)
+      console.log("Testing analytics table connection...")
+
+      const { data, error } = await supabase.from("user_events").select("id").limit(1)
+
       if (error) {
-        console.warn("Analytics tables not available, disabling analytics:", error)
+        console.error("Analytics table test failed:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
         this.analyticsEnabled = false
         return
       }
-      console.log("Analytics tables available")
+
+      console.log("Analytics table test successful:", data)
+      this.analyticsEnabled = true
+
+      // Track session start only if analytics is working
+      await this.trackEvent("session_start", {
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        screen: {
+          width: window.screen.width,
+          height: window.screen.height,
+        },
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+        },
+      })
     } catch (error) {
-      console.warn("Analytics tables not available, disabling analytics:", error)
+      console.error("Analytics initialization failed:", error)
       this.analyticsEnabled = false
       return
     }
-
-    // Track session start
-    this.trackEvent("session_start", {
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      screen: {
-        width: window.screen.width,
-        height: window.screen.height,
-      },
-      viewport: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-      },
-    })
 
     // Track session end on page unload
     window.addEventListener("beforeunload", () => {
@@ -108,7 +118,10 @@ class AnalyticsServiceImpl {
   }
 
   async trackEvent(eventType: string, eventData: Record<string, any> = {}, userId?: string) {
-    if (typeof window === "undefined" || !this.analyticsEnabled) return
+    if (typeof window === "undefined" || !this.analyticsEnabled) {
+      console.log("Analytics disabled, skipping event:", eventType)
+      return
+    }
 
     try {
       const event = {
@@ -119,26 +132,35 @@ class AnalyticsServiceImpl {
           sessionId: this.sessionId,
           url: window.location.href,
           referrer: document.referrer,
-          timestamp: new Date().toISOString(),
         },
         session_id: this.sessionId,
         page_path: window.location.pathname,
         user_agent: navigator.userAgent,
-        created_at: new Date().toISOString(),
       }
 
+      console.log("Tracking event:", eventType, event)
+
       // Store in Supabase
-      const { error } = await supabase.from("user_events").insert([event])
+      const { data, error } = await supabase.from("user_events").insert([event]).select()
 
       if (error) {
-        console.warn("Failed to track analytics event:", error)
-        // Disable analytics if we keep getting errors
+        console.error("Failed to track analytics event:", {
+          eventType,
+          error: {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+          },
+        })
+
+        // Disable analytics if we keep getting table errors
         if (error.code === "42P01" || error.code === "PGRST116") {
-          // Table doesn't exist or permission denied
+          console.warn("Disabling analytics due to table/permission errors")
           this.analyticsEnabled = false
         }
       } else {
-        console.log("Analytics event tracked:", eventType)
+        console.log("Analytics event tracked successfully:", eventType, data)
       }
 
       // Also send to Google Analytics if available
@@ -152,7 +174,7 @@ class AnalyticsServiceImpl {
         })
       }
     } catch (error) {
-      console.warn("Error tracking event:", error)
+      console.error("Error tracking event:", eventType, error)
     }
   }
 
@@ -219,83 +241,36 @@ class AnalyticsServiceImpl {
   }
 
   async getAnalyticsData(userId: string, timeRange: string): Promise<AnalyticsData> {
-    if (!this.analyticsEnabled) {
-      // Return mock data if analytics is disabled
-      return {
-        overview: {
-          totalSessions: 0,
-          sessionsChange: 0,
-          avgSessionTime: "0m 0s",
-          sessionTimeChange: 0,
-          remindersCreated: 0,
-          remindersChange: 0,
-          engagementScore: 0,
-          engagementChange: 0,
-        },
-        featureMetrics: [],
-        topActions: [],
-        performance: {
-          pageLoadTime: 0,
-          errorRate: 0,
-          bounceRate: 0,
-        },
-      }
-    }
-
-    // Try to get real data from Supabase
-    try {
-      // For now, return mock data - we'll implement real queries later
-      return {
-        overview: {
-          totalSessions: 156,
-          sessionsChange: 12.5,
-          avgSessionTime: "4m 32s",
-          sessionTimeChange: 8.2,
-          remindersCreated: 89,
-          remindersChange: 15.3,
-          engagementScore: 78,
-          engagementChange: 5.1,
-        },
-        featureMetrics: [
-          { name: "Reminders", usage: 89, change: 15.3, trend: "up" },
-          { name: "Quotes", usage: 45, change: -2.1, trend: "down" },
-          { name: "Friends", usage: 23, change: 8.7, trend: "up" },
-          { name: "Sharing", usage: 12, change: 3.2, trend: "up" },
-        ],
-        topActions: [
-          { name: "Create Reminder", count: 89, percentage: 35.2 },
-          { name: "View Dashboard", count: 67, percentage: 26.5 },
-          { name: "Generate Quote", count: 45, percentage: 17.8 },
-          { name: "Share Reminder", count: 34, percentage: 13.4 },
-          { name: "Update Settings", count: 18, percentage: 7.1 },
-        ],
-        performance: {
-          pageLoadTime: 1240,
-          errorRate: 0.8,
-          bounceRate: 23.4,
-        },
-      }
-    } catch (error) {
-      console.warn("Failed to get analytics data:", error)
-      return {
-        overview: {
-          totalSessions: 0,
-          sessionsChange: 0,
-          avgSessionTime: "0m 0s",
-          sessionTimeChange: 0,
-          remindersCreated: 0,
-          remindersChange: 0,
-          engagementScore: 0,
-          engagementChange: 0,
-        },
-        featureMetrics: [],
-        topActions: [],
-        performance: {
-          pageLoadTime: 0,
-          errorRate: 0,
-          bounceRate: 0,
-        },
-      }
+    // Return mock data for now
+    return {
+      overview: {
+        totalSessions: 156,
+        sessionsChange: 12.5,
+        avgSessionTime: "4m 32s",
+        sessionTimeChange: 8.2,
+        remindersCreated: 89,
+        remindersChange: 15.3,
+        engagementScore: 78,
+        engagementChange: 5.1,
+      },
+      featureMetrics: [
+        { name: "Reminders", usage: 89, change: 15.3, trend: "up" },
+        { name: "Quotes", usage: 45, change: -2.1, trend: "down" },
+        { name: "Friends", usage: 23, change: 8.7, trend: "up" },
+        { name: "Sharing", usage: 12, change: 3.2, trend: "up" },
+      ],
+      topActions: [
+        { name: "Create Reminder", count: 89, percentage: 35.2 },
+        { name: "View Dashboard", count: 67, percentage: 26.5 },
+        { name: "Generate Quote", count: 45, percentage: 17.8 },
+        { name: "Share Reminder", count: 34, percentage: 13.4 },
+        { name: "Update Settings", count: 18, percentage: 7.1 },
+      ],
+      performance: {
+        pageLoadTime: 1240,
+        errorRate: 0.8,
+        bounceRate: 23.4,
+      },
     }
   }
 
