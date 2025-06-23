@@ -1,505 +1,504 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogTitle,
-  DialogDescription,
-  DialogHeader,
-} from "@/components/ui/dialog"
-import { LoginForm } from "@/components/auth/login-form"
-import { RegisterForm } from "@/components/auth/register-form"
-import { Bell, Brain, Users, Smartphone, Globe, MapPin, Sparkles, X, CheckCircle, ArrowRight, Star } from "lucide-react"
+import type React from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { StructuredData } from "@/components/seo/structured-data"
-import Link from "next/link"
-
-import { useTrackEvent } from "@/hooks/use-analytics"
+import { Header } from "@/components/dashboard/header"
+import { Sidebar } from "@/components/dashboard/sidebar"
+import { ReminderForm } from "@/components/reminders/reminder-form"
+import { ReminderCard } from "@/components/reminders/reminder-card"
+import { QuoteGenerator } from "@/components/quotes/quote-generator"
+import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
+import { UserPreferencesCard } from "@/components/settings/user-preferences"
+import { ProfileImageUpload } from "@/components/settings/profile-image-upload"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Plus, Bell, Quote, Calendar } from "lucide-react"
+import { useAnalytics } from "@/hooks/use-analytics"
 import { Analytics } from "@/lib/analytics"
-import { CookieConsent } from "@/components/analytics/cookie-consent"
+import { NotificationService } from "@/lib/notifications"
+import { UserPreferencesService } from "@/lib/user-preferences"
 import { SupabaseAuthService } from "@/lib/auth-supabase"
-import type { AuthUser } from "@/lib/auth-supabase"
+import type { AuthUser as User, Reminder } from "@/lib/auth-supabase"
+import { SupabaseReminderService } from "@/lib/reminders-supabase"
+import type { FavoriteQuote } from "@/lib/quotes-supabase"
+import { SupabaseQuoteService } from "@/lib/quotes-supabase"
+import { FriendsDashboard } from "@/components/friends/friends-dashboard"
+import { AnalyticsDashboard } from "@/components/analytics/analytics-dashboard"
 
-function HomePageContent() {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLogin, setIsLogin] = useState(true)
-  const [authDialogOpen, setAuthDialogOpen] = useState(false)
+export default function Dashboard() {
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("dashboard")
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [reminders, setReminders] = useState<Reminder[]>([])
+  const [showReminderForm, setShowReminderForm] = useState(false)
+  const [editingReminder, setEditingReminder] = useState<Reminder | undefined>()
+  const [profileData, setProfileData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    profileImage: "",
+  })
+  const [favoriteQuotes, setFavoriteQuotes] = useState<FavoriteQuote[]>([])
   const router = useRouter()
-
-  const { trackClick, trackFeature } = useTrackEvent()
+  const analytics = useAnalytics()
+  const notificationService = NotificationService.getInstance()
+  const userPreferencesService = UserPreferencesService.getInstance()
 
   useEffect(() => {
     const loadUser = async () => {
       const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
-      if (currentUser) {
-        setUser(currentUser)
+      if (!currentUser) {
+        router.push("/")
+        return
       }
+
+      setUser(currentUser)
+      loadReminders(currentUser.id)
+      setProfileData({
+        firstName: currentUser.firstName,
+        lastName: currentUser.lastName,
+        email: currentUser.email,
+        profileImage: currentUser.profileImage || "",
+      })
+      setLoading(false)
+
+      // Load favorite quotes
+      if (currentUser) {
+        const quotes = await SupabaseQuoteService.getInstance().getFavoriteQuotes(currentUser.id)
+        setFavoriteQuotes(quotes.slice(0, 3)) // Show only top 3
+      }
+
+      // Initialize notifications
+      await notificationService.initialize()
     }
 
     loadUser()
-
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = SupabaseAuthService.getInstance().onAuthStateChange((user) => {
-      setUser(user)
-      if (user) {
-        // Small delay to ensure state is updated
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 100)
-      }
-    })
-
-    return () => subscription.unsubscribe()
   }, [router])
 
-  const handleLogin = (loggedInUser: AuthUser) => {
-    Analytics.trackLogin("email")
-    Analytics.setUserProperties({
-      user_type: "free",
-      signup_method: "email",
-      user_id: loggedInUser.id,
-    })
-    setUser(loggedInUser)
-    setAuthDialogOpen(false)
-    // Navigate to dashboard
-    router.push("/dashboard")
-  }
-
-  const handleGetStarted = () => {
-    Analytics.trackGetStartedClick("hero")
-    if (user) {
-      router.push("/dashboard")
-    } else {
-      setAuthDialogOpen(true)
+  const loadReminders = async (userId: string) => {
+    try {
+      const userReminders = await SupabaseReminderService.getInstance().getReminders(userId)
+      setReminders(userReminders)
+    } catch (error) {
+      console.error("Error loading reminders:", error)
     }
   }
 
-  return (
-    <>
-      <StructuredData />
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-          <div className="container mx-auto px-4 flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">MR</span>
-              </div>
-              <h1 className="text-xl font-bold text-primary">MindReMinder</h1>
-            </Link>
+  const handleLogout = async () => {
+    // Cancel all scheduled notifications on logout
+    notificationService.cancelAllScheduledNotifications()
+    await SupabaseAuthService.getInstance().signOut()
+    router.push("/")
+  }
 
-            <nav className="flex items-center space-x-4">
-              {user ? (
-                <Button onClick={() => router.push("/dashboard")}>Go to Dashboard</Button>
-              ) : (
-                <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>Sign In</Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>{isLogin ? "Sign In to MindReMinder" : "Create MindReMinder Account"}</DialogTitle>
-                      <DialogDescription>
-                        {isLogin
-                          ? "Welcome back! Please sign in to your account."
-                          : "Join MindReMinder to start organizing your life with intelligent reminders."}
-                      </DialogDescription>
-                    </DialogHeader>
-                    {isLogin ? (
-                      <LoginForm onLogin={handleLogin} onToggleMode={() => setIsLogin(false)} />
-                    ) : (
-                      <RegisterForm onRegister={handleLogin} onToggleMode={() => setIsLogin(true)} />
-                    )}
-                  </DialogContent>
-                </Dialog>
-              )}
-            </nav>
+  const handleSaveReminder = async (reminderData: Omit<Reminder, "id" | "userId" | "createdAt" | "updatedAt">) => {
+    if (!user) return
+
+    try {
+      let savedReminder: Reminder
+
+      if (editingReminder) {
+        savedReminder = await SupabaseReminderService.getInstance().updateReminder(
+          user.id,
+          editingReminder.id,
+          reminderData,
+        )
+        Analytics.trackReminderEdited()
+
+        // Cancel old notification and schedule new one if needed
+        notificationService.cancelScheduledNotification(`reminder-${editingReminder.id}`)
+      } else {
+        savedReminder = await SupabaseReminderService.getInstance().createReminder(user.id, reminderData)
+        const reminderType = reminderData.image ? "image" : reminderData.location ? "location" : "text"
+        Analytics.trackReminderCreated(reminderType)
+      }
+
+      // Schedule notification if reminder has a scheduled time and is active
+      if (savedReminder.scheduledTime && savedReminder.isActive) {
+        await notificationService.scheduleReminderNotification({
+          id: savedReminder.id,
+          title: savedReminder.title,
+          description: savedReminder.description,
+          scheduledTime: savedReminder.scheduledTime,
+        })
+      }
+
+      loadReminders(user.id)
+      setShowReminderForm(false)
+      setEditingReminder(undefined)
+    } catch (error) {
+      console.error("Error saving reminder:", error)
+    }
+  }
+
+  const handleEditReminder = (reminder: Reminder) => {
+    setEditingReminder(reminder)
+    setShowReminderForm(true)
+  }
+
+  const handleDeleteReminder = async (reminderId: string) => {
+    if (!user) return
+    try {
+      await SupabaseReminderService.getInstance().deleteReminder(user.id, reminderId)
+
+      // Cancel scheduled notification
+      notificationService.cancelScheduledNotification(`reminder-${reminderId}`)
+
+      Analytics.trackReminderDeleted()
+      loadReminders(user.id)
+    } catch (error) {
+      console.error("Error deleting reminder:", error)
+    }
+  }
+
+  const handleToggleReminder = async (reminderId: string) => {
+    if (!user) return
+    try {
+      const reminder = reminders.find((r) => r.id === reminderId)
+      if (reminder) {
+        const updatedReminder = await SupabaseReminderService.getInstance().toggleReminder(user.id, reminderId)
+
+        if (updatedReminder.isActive && updatedReminder.scheduledTime) {
+          // Schedule notification for activated reminder
+          await notificationService.scheduleReminderNotification({
+            id: updatedReminder.id,
+            title: updatedReminder.title,
+            description: updatedReminder.description,
+            scheduledTime: updatedReminder.scheduledTime,
+          })
+        } else {
+          // Cancel notification for deactivated reminder
+          notificationService.cancelScheduledNotification(`reminder-${reminderId}`)
+        }
+
+        Analytics.trackReminderToggled(updatedReminder.isActive)
+        loadReminders(user.id)
+      }
+    } catch (error) {
+      console.error("Error toggling reminder:", error)
+    }
+  }
+
+  const handleShareReminder = (reminder: Reminder) => {
+    const shareText = `${reminder.title}${reminder.description ? "\n" + reminder.description : ""}`
+    if (navigator.share) {
+      navigator.share({
+        title: "Reminder from MindReMinder",
+        text: shareText,
+      })
+      Analytics.trackReminderShared("native_share")
+    } else {
+      navigator.clipboard.writeText(shareText)
+      Analytics.trackReminderShared("copy_link")
+    }
+  }
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+
+    try {
+      const updatedUser = await SupabaseAuthService.getInstance().updateProfile({
+        firstName: profileData.firstName,
+        lastName: profileData.lastName,
+        profileImage: profileData.profileImage,
+      })
+      setUser(updatedUser)
+    } catch (error) {
+      console.error("Error updating profile:", error)
+    }
+  }
+
+  const handleProfileImageChange = async (imageUrl: string) => {
+    if (!user) return
+
+    try {
+      const updatedUser = await SupabaseAuthService.getInstance().updateProfile({
+        profileImage: imageUrl,
+      })
+      setUser(updatedUser)
+      setProfileData((prev) => ({ ...prev, profileImage: imageUrl }))
+    } catch (error) {
+      console.error("Error updating profile image:", error)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
+            <span className="text-primary-foreground font-bold text-sm">MR</span>
           </div>
-        </header>
-
-        {/* Main Content */}
-        <main>
-          {/* Hero Section */}
-          <section className="py-20 px-4 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-            <div className="container mx-auto text-center max-w-4xl">
-              <Badge variant="secondary" className="mb-4">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI-Powered Personal Assistant
-              </Badge>
-
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                Never Forget What Matters Most
-              </h1>
-
-              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-                MindReMinder is your intelligent companion that helps you remember important moments, stay motivated
-                with AI-generated quotes, and share meaningful reminders with friends.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                <Button size="lg" onClick={handleGetStarted} className="text-lg px-8">
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="text-lg px-8"
-                  onClick={() => Analytics.trackDemoRequest()}
-                >
-                  Watch Demo
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-center space-x-6 text-sm text-muted-foreground">
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-                  Free to start
-                </div>
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-                  No credit card required
-                </div>
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-                  Works everywhere
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* What MindReMinder Is NOT */}
-          <section className="py-16 px-4 bg-muted/30" aria-labelledby="what-not-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-12">
-                <h2 id="what-not-heading" className="text-3xl font-bold mb-4">
-                  What MindReMinder Is NOT
-                </h2>
-                <p className="text-lg text-muted-foreground">
-                  We're not another productivity app. We're something different.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                <article className="border-2 border-destructive/20 rounded-lg p-6 text-center">
-                  <X className="w-12 h-12 text-destructive mx-auto mb-4" aria-hidden="true" />
-                  <h3 className="font-semibold mb-2">Not a To-Do List</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We don't manage your tasks. We help you remember what's truly important.
-                  </p>
-                </article>
-
-                <article className="border-2 border-destructive/20 rounded-lg p-6 text-center">
-                  <X className="w-12 h-12 text-destructive mx-auto mb-4" aria-hidden="true" />
-                  <h3 className="font-semibold mb-2">Not a Calendar App</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We don't schedule meetings. We remind you of meaningful moments.
-                  </p>
-                </article>
-
-                <article className="border-2 border-destructive/20 rounded-lg p-6 text-center">
-                  <X className="w-12 h-12 text-destructive mx-auto mb-4" aria-hidden="true" />
-                  <h3 className="font-semibold mb-2">Not Just Another App</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We're a mindful companion that cares about your well-being.
-                  </p>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* Features Section */}
-          <section className="py-20 px-4" aria-labelledby="features-heading">
-            <div className="container mx-auto max-w-6xl">
-              <div className="text-center mb-16">
-                <h2 id="features-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                  Intelligent Reminders That Actually Matter
-                </h2>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                  MindReMinder combines smart technology with human insight to help you stay connected to what's
-                  important in your life.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Bell className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Smart Reminders</h3>
-                  <p className="text-muted-foreground">
-                    Set reminders with text, images, and smart scheduling. Get notified at the perfect time.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <MapPin className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Location-Based</h3>
-                  <p className="text-muted-foreground">
-                    Get reminded when you arrive at specific places. Perfect for context-sensitive memories.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Brain className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">AI-Powered Quotes</h3>
-                  <p className="text-muted-foreground">
-                    Receive personalized, inspiring quotes generated by AI based on topics that matter to you.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Users className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Share with Friends</h3>
-                  <p className="text-muted-foreground">
-                    Send meaningful reminders and quotes to friends. Strengthen relationships through shared memories.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Smartphone className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Native Mobile App</h3>
-                  <p className="text-muted-foreground">
-                    Full-featured mobile app with push notifications and offline access. Always in your pocket.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Globe className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Web & Mobile Sync</h3>
-                  <p className="text-muted-foreground">
-                    Seamlessly sync between web and mobile. Manage reminders from anywhere, anytime.
-                  </p>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* How It Works */}
-          <section className="py-20 px-4 bg-muted/30" aria-labelledby="how-it-works-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-16">
-                <h2 id="how-it-works-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                  How MindReMinder Works
-                </h2>
-                <p className="text-lg text-muted-foreground">Simple, intuitive, and designed for real life</p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary-foreground">1</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Create Reminders</h3>
-                  <p className="text-muted-foreground">
-                    Add meaningful reminders with text, images, and smart scheduling options.
-                  </p>
-                </div>
-
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary-foreground">2</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Get Notified</h3>
-                  <p className="text-muted-foreground">
-                    Receive timely notifications based on time, location, or other smart triggers.
-                  </p>
-                </div>
-
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary-foreground">3</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Stay Inspired</h3>
-                  <p className="text-muted-foreground">
-                    Enjoy AI-generated quotes and share meaningful moments with friends.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* Testimonials */}
-          <section className="py-20 px-4" aria-labelledby="testimonials-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-16">
-                <h2 id="testimonials-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                  What People Are Saying
-                </h2>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8">
-                <article className="rounded-lg p-6 border">
-                  <div className="flex mb-4" aria-label="5 star rating">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
-                    ))}
-                  </div>
-                  <blockquote className="text-muted-foreground mb-4">
-                    "Finally, an app that understands the difference between tasks and memories. MindReMinder helps me
-                    stay connected to what truly matters."
-                  </blockquote>
-                  <footer>
-                    <div className="font-semibold">Sarah Johnson</div>
-                    <div className="text-sm text-muted-foreground">Life Coach</div>
-                  </footer>
-                </article>
-
-                <article className="rounded-lg p-6 border">
-                  <div className="flex mb-4" aria-label="5 star rating">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
-                    ))}
-                  </div>
-                  <blockquote className="text-muted-foreground mb-4">
-                    "The AI quotes feature is incredible. It's like having a personal motivational coach that knows
-                    exactly what I need to hear."
-                  </blockquote>
-                  <footer>
-                    <div className="font-semibold">Michael Chen</div>
-                    <div className="text-sm text-muted-foreground">Entrepreneur</div>
-                  </footer>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* CTA Section */}
-          <section className="py-20 px-4 bg-primary text-primary-foreground">
-            <div className="container mx-auto text-center max-w-3xl">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform How You Remember?</h2>
-              <p className="text-xl mb-8 opacity-90">
-                Join thousands of people who've discovered a better way to stay connected to what matters most in their
-                lives.
-              </p>
-
-              <Button
-                size="lg"
-                variant="secondary"
-                onClick={() => {
-                  Analytics.trackGetStartedClick("cta")
-                  handleGetStarted()
-                }}
-                className="text-lg px-8"
-              >
-                Start Your Journey Today
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-
-              <p className="text-sm mt-4 opacity-75">Free forever. No credit card required. Cancel anytime.</p>
-            </div>
-          </section>
-
-          {/* Footer */}
-          <footer className="py-12 px-4 border-t bg-muted/30">
-            <div className="container mx-auto max-w-6xl">
-              <div className="grid md:grid-cols-4 gap-8">
-                <div>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                      <span className="text-primary-foreground font-bold text-xs">MR</span>
-                    </div>
-                    <span className="font-bold text-primary">MindReMinder</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Your intelligent companion for meaningful reminders and inspiration.
-                  </p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4">Product</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>
-                      <a href="#features" className="hover:text-foreground">
-                        Features
-                      </a>
-                    </li>
-                    <li>
-                      <a href="/mobile" className="hover:text-foreground">
-                        Mobile App
-                      </a>
-                    </li>
-                    <li>
-                      <a href="/dashboard" className="hover:text-foreground">
-                        Web App
-                      </a>
-                    </li>
-                    <li>
-                      <a href="/api" className="hover:text-foreground">
-                        API
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4">Company</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>
-                      <a href="/about" className="hover:text-foreground">
-                        About
-                      </a>
-                    </li>
-                    <li>
-                      <a href="/blog" className="hover:text-foreground">
-                        Blog
-                      </a>
-                    </li>
-                    <li>
-                      <a href="/careers" className="hover:text-foreground">
-                        Careers
-                      </a>
-                    </li>
-                    <li>
-                      <Link href="/contact" className="hover:text-foreground">
-                        Contact
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4">Support</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>
-                      <Link href="/help" className="hover:text-foreground">
-                        Help Center
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/privacy" className="hover:text-foreground">
-                        Privacy Policy
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/terms" className="hover:text-foreground">
-                        Terms of Service
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-                <p>&copy; 2025 MindReMinder. All rights reserved. Built with ❤️ for mindful living.</p>
-              </div>
-            </div>
-          </footer>
-        </main>
-        <CookieConsent />
+          <p>Loading...</p>
+        </div>
       </div>
-    </>
-  )
-}
+    )
+  }
 
-export default function HomePage() {
+  if (!user) {
+    return null // Will redirect in useEffect
+  }
+
+  const activeReminders = reminders.filter((r) => r.isActive)
+  const upcomingReminders = reminders
+    .filter((r) => r.isActive && r.scheduledTime && new Date(r.scheduledTime) > new Date())
+    .slice(0, 3)
+
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomePageContent />
-    </Suspense>
+    <div className="min-h-screen bg-background">
+      <Header
+        user={user}
+        onLogout={handleLogout}
+        onProfileClick={() => setActiveTab("settings")}
+        onMenuClick={() => setSidebarOpen(true)}
+      />
+
+      <div className="flex">
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={(tab) => {
+            Analytics.trackTabChange(tab)
+            setActiveTab(tab)
+          }}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+
+        <main className="flex-1 p-6 md:ml-0">
+          {activeTab === "dashboard" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-3xl font-bold">Welcome back, {user.firstName}!</h2>
+                <p className="text-muted-foreground">Here's what's happening with your reminders</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Reminders</CardTitle>
+                    <Bell className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{reminders.length}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Reminders</CardTitle>
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{activeReminders.length}</div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
+                    <Quote className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{upcomingReminders.length}</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {favoriteQuotes.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Quote className="h-5 w-5" />
+                        Recent Favorite Quotes
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          Analytics.trackTabChange("quotes")
+                          setActiveTab("quotes")
+                        }}
+                      >
+                        View All
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {favoriteQuotes.map((quote) => (
+                        <div key={quote.id} className="p-3 border rounded-lg bg-muted/30">
+                          <p className="text-sm italic mb-1">"{quote.content}"</p>
+                          <p className="text-xs text-muted-foreground">— {quote.author}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {upcomingReminders.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Upcoming Reminders</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {upcomingReminders.map((reminder) => (
+                        <div key={reminder.id} className="flex items-center space-x-4 p-3 border rounded-lg">
+                          <div className="flex-1">
+                            <h4 className="font-medium">{reminder.title}</h4>
+                            {reminder.scheduledTime && (
+                              <p className="text-sm text-muted-foreground">
+                                {userPreferencesService.formatDateTime(new Date(reminder.scheduledTime))}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+
+          {activeTab === "reminders" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-bold">Reminders</h2>
+                <Button onClick={() => setShowReminderForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Reminder
+                </Button>
+              </div>
+
+              {showReminderForm ? (
+                <ReminderForm
+                  reminder={editingReminder}
+                  onSave={handleSaveReminder}
+                  onCancel={() => {
+                    setShowReminderForm(false)
+                    setEditingReminder(undefined)
+                  }}
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {reminders.map((reminder) => (
+                    <ReminderCard
+                      key={reminder.id}
+                      reminder={reminder}
+                      onEdit={handleEditReminder}
+                      onDelete={handleDeleteReminder}
+                      onToggle={handleToggleReminder}
+                      onShare={handleShareReminder}
+                    />
+                  ))}
+                  {reminders.length === 0 && (
+                    <div className="col-span-full text-center py-12">
+                      <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No reminders yet</h3>
+                      <p className="text-muted-foreground mb-4">Create your first reminder to get started</p>
+                      <Button onClick={() => setShowReminderForm(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Reminder
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "quotes" && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold">AI Quotes</h2>
+              <QuoteGenerator user={user} />
+            </div>
+          )}
+
+          {activeTab === "friends" && <FriendsDashboard user={user} />}
+
+          {activeTab === "analytics" && <AnalyticsDashboard user={user} />}
+
+          {activeTab === "settings" && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold">Settings</h2>
+
+              {/* Profile Image Upload */}
+              <ProfileImageUpload
+                currentImage={user.profileImage}
+                userName={`${user.firstName} ${user.lastName}`}
+                onImageChange={handleProfileImageChange}
+              />
+
+              {/* Profile Information */}
+              <Card className="max-w-2xl">
+                <CardHeader>
+                  <CardTitle>Profile Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleUpdateProfile} className="space-y-4">
+                    <div className="flex items-center space-x-4 mb-6">
+                      <Avatar className="h-20 w-20">
+                        <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={user.firstName} />
+                        <AvatarFallback className="text-lg">
+                          {user.firstName[0]}
+                          {user.lastName[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="text-lg font-medium">
+                          {user.firstName} {user.lastName}
+                        </h3>
+                        <p className="text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          value={profileData.firstName}
+                          onChange={(e) => setProfileData((prev) => ({ ...prev, firstName: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          value={profileData.lastName}
+                          onChange={(e) => setProfileData((prev) => ({ ...prev, lastName: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input id="email" type="email" value={profileData.email} disabled className="bg-muted" />
+                    </div>
+
+                    <Button type="submit">Update Profile</Button>
+                  </form>
+                </CardContent>
+              </Card>
+
+              {/* Date & Time Preferences */}
+              <UserPreferencesCard />
+
+              {/* Notification Settings */}
+              <NotificationSettingsCard />
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
   )
 }
