@@ -63,7 +63,12 @@ class AnalyticsServiceImpl {
 
     // Test if analytics tables exist
     try {
-      await supabase.from("analytics_events").select("id").limit(1)
+      const { error } = await supabase.from("user_events").select("id").limit(1)
+      if (error) {
+        console.warn("Analytics tables not available, disabling analytics:", error)
+        this.analyticsEnabled = false
+        return
+      }
       console.log("Analytics tables available")
     } catch (error) {
       console.warn("Analytics tables not available, disabling analytics:", error)
@@ -123,15 +128,17 @@ class AnalyticsServiceImpl {
       }
 
       // Store in Supabase
-      const { error } = await supabase.from("analytics_events").insert([event])
+      const { error } = await supabase.from("user_events").insert([event])
 
       if (error) {
         console.warn("Failed to track analytics event:", error)
         // Disable analytics if we keep getting errors
-        if (error.code === "42P01") {
-          // Table doesn't exist
+        if (error.code === "42P01" || error.code === "PGRST116") {
+          // Table doesn't exist or permission denied
           this.analyticsEnabled = false
         }
+      } else {
+        console.log("Analytics event tracked:", eventType)
       }
 
       // Also send to Google Analytics if available
@@ -212,35 +219,83 @@ class AnalyticsServiceImpl {
   }
 
   async getAnalyticsData(userId: string, timeRange: string): Promise<AnalyticsData> {
-    return {
-      overview: {
-        totalSessions: 156,
-        sessionsChange: 12.5,
-        avgSessionTime: "4m 32s",
-        sessionTimeChange: 8.2,
-        remindersCreated: 89,
-        remindersChange: 15.3,
-        engagementScore: 78,
-        engagementChange: 5.1,
-      },
-      featureMetrics: [
-        { name: "Reminders", usage: 89, change: 15.3, trend: "up" },
-        { name: "Quotes", usage: 45, change: -2.1, trend: "down" },
-        { name: "Friends", usage: 23, change: 8.7, trend: "up" },
-        { name: "Sharing", usage: 12, change: 3.2, trend: "up" },
-      ],
-      topActions: [
-        { name: "Create Reminder", count: 89, percentage: 35.2 },
-        { name: "View Dashboard", count: 67, percentage: 26.5 },
-        { name: "Generate Quote", count: 45, percentage: 17.8 },
-        { name: "Share Reminder", count: 34, percentage: 13.4 },
-        { name: "Update Settings", count: 18, percentage: 7.1 },
-      ],
-      performance: {
-        pageLoadTime: 1240,
-        errorRate: 0.8,
-        bounceRate: 23.4,
-      },
+    if (!this.analyticsEnabled) {
+      // Return mock data if analytics is disabled
+      return {
+        overview: {
+          totalSessions: 0,
+          sessionsChange: 0,
+          avgSessionTime: "0m 0s",
+          sessionTimeChange: 0,
+          remindersCreated: 0,
+          remindersChange: 0,
+          engagementScore: 0,
+          engagementChange: 0,
+        },
+        featureMetrics: [],
+        topActions: [],
+        performance: {
+          pageLoadTime: 0,
+          errorRate: 0,
+          bounceRate: 0,
+        },
+      }
+    }
+
+    // Try to get real data from Supabase
+    try {
+      // For now, return mock data - we'll implement real queries later
+      return {
+        overview: {
+          totalSessions: 156,
+          sessionsChange: 12.5,
+          avgSessionTime: "4m 32s",
+          sessionTimeChange: 8.2,
+          remindersCreated: 89,
+          remindersChange: 15.3,
+          engagementScore: 78,
+          engagementChange: 5.1,
+        },
+        featureMetrics: [
+          { name: "Reminders", usage: 89, change: 15.3, trend: "up" },
+          { name: "Quotes", usage: 45, change: -2.1, trend: "down" },
+          { name: "Friends", usage: 23, change: 8.7, trend: "up" },
+          { name: "Sharing", usage: 12, change: 3.2, trend: "up" },
+        ],
+        topActions: [
+          { name: "Create Reminder", count: 89, percentage: 35.2 },
+          { name: "View Dashboard", count: 67, percentage: 26.5 },
+          { name: "Generate Quote", count: 45, percentage: 17.8 },
+          { name: "Share Reminder", count: 34, percentage: 13.4 },
+          { name: "Update Settings", count: 18, percentage: 7.1 },
+        ],
+        performance: {
+          pageLoadTime: 1240,
+          errorRate: 0.8,
+          bounceRate: 23.4,
+        },
+      }
+    } catch (error) {
+      console.warn("Failed to get analytics data:", error)
+      return {
+        overview: {
+          totalSessions: 0,
+          sessionsChange: 0,
+          avgSessionTime: "0m 0s",
+          sessionTimeChange: 0,
+          remindersCreated: 0,
+          remindersChange: 0,
+          engagementScore: 0,
+          engagementChange: 0,
+        },
+        featureMetrics: [],
+        topActions: [],
+        performance: {
+          pageLoadTime: 0,
+          errorRate: 0,
+          bounceRate: 0,
+        },
+      }
     }
   }
 
