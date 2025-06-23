@@ -28,39 +28,56 @@ export interface SimpleMicroAction {
   isActive: boolean
 }
 
+// Simple user management for demo purposes
+export class UserService {
+  static async ensureDemoUser(): Promise<string> {
+    const demoUserId = "demo-user-123"
+
+    // Check if demo user exists in profiles table
+    const { data: existingUser } = await supabase.from("profiles").select("id").eq("id", demoUserId).single()
+
+    if (!existingUser) {
+      // Create demo user profile
+      const { error } = await supabase.from("profiles").insert({
+        id: demoUserId,
+        email: "demo@mindreminder.com",
+        first_name: "Demo",
+        last_name: "User",
+      })
+
+      if (error) {
+        console.error("Error creating demo user:", error)
+      }
+    }
+
+    return demoUserId
+  }
+}
+
 export class DashboardDataService {
   static async getStats(userId?: string): Promise<DashboardStats> {
     try {
-      // For now, return demo data if no user
-      if (!userId) {
-        return {
-          activeReminders: 0,
-          activeHabits: 0,
-          bestStreak: 0,
-          completedToday: 0,
-          totalHabits: 0,
-        }
-      }
+      const actualUserId = userId || (await UserService.ensureDemoUser())
 
       // Get reminders count
       const { count: remindersCount } = await supabase
         .from("reminders")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .eq("is_active", true)
 
       // Get micro-actions count
       const { count: habitsCount } = await supabase
         .from("micro_actions")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .eq("is_active", true)
 
       // Get best streak
       const { data: bestStreakData } = await supabase
         .from("micro_actions")
         .select("best_streak")
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .order("best_streak", { ascending: false })
         .limit(1)
 
@@ -69,7 +86,7 @@ export class DashboardDataService {
       const { count: completedTodayCount } = await supabase
         .from("micro_action_completions")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .eq("completion_date", today)
 
       return {
@@ -93,12 +110,12 @@ export class DashboardDataService {
 
   static async getReminders(userId?: string): Promise<SimpleReminder[]> {
     try {
-      if (!userId) return []
+      const actualUserId = userId || (await UserService.ensureDemoUser())
 
       const { data, error } = await supabase
         .from("reminders")
         .select("id, title, description, scheduled_time, is_active, created_at")
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(10)
@@ -121,12 +138,12 @@ export class DashboardDataService {
 
   static async getMicroActions(userId?: string): Promise<SimpleMicroAction[]> {
     try {
-      if (!userId) return []
+      const actualUserId = userId || (await UserService.ensureDemoUser())
 
       const { data, error } = await supabase
         .from("micro_actions")
         .select("id, title, category, current_streak, is_active")
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(10)
@@ -138,7 +155,7 @@ export class DashboardDataService {
       const { data: completions } = await supabase
         .from("micro_action_completions")
         .select("micro_action_id")
-        .eq("user_id", userId)
+        .eq("user_id", actualUserId)
         .eq("completion_date", today)
 
       const completedToday = new Set(completions?.map((c) => c.micro_action_id) || [])
@@ -161,22 +178,31 @@ export class DashboardDataService {
     title: string
     description?: string
     scheduledTime?: string
+    location?: string
+    image?: string
     isActive: boolean
   }): Promise<SimpleReminder> {
     try {
+      const userId = await UserService.ensureDemoUser()
+
       const { data, error } = await supabase
         .from("reminders")
         .insert({
-          user_id: "demo-user", // For now, using demo user
+          user_id: userId,
           title: reminderData.title,
           description: reminderData.description || null,
           scheduled_time: reminderData.scheduledTime || null,
+          location: reminderData.location || null,
+          image: reminderData.image || null,
           is_active: reminderData.isActive,
         })
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
 
       return {
         id: data.id,
@@ -198,24 +224,33 @@ export class DashboardDataService {
     category: string
     duration: string
     frequency: string
+    timeOfDay?: string
+    habitStack?: string
     isActive: boolean
   }): Promise<SimpleMicroAction> {
     try {
+      const userId = await UserService.ensureDemoUser()
+
       const { data, error } = await supabase
         .from("micro_actions")
         .insert({
-          user_id: "demo-user", // For now, using demo user
+          user_id: userId,
           title: microActionData.title,
           description: microActionData.description || null,
           category: microActionData.category,
           duration: microActionData.duration,
           frequency: microActionData.frequency,
+          time_of_day: microActionData.timeOfDay || null,
+          habit_stack: microActionData.habitStack || null,
           is_active: microActionData.isActive,
         })
         .select()
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
 
       return {
         id: data.id,
