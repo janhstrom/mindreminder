@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Analytics } from "@/lib/analytics"
 import { SupabaseAuthService } from "@/lib/auth-supabase"
 import type { AuthUser } from "@/lib/auth-supabase"
+import { AlertCircle } from "lucide-react"
 
 interface LoginFormProps {
   onLogin: (user: AuthUser) => void
@@ -36,7 +38,18 @@ export function LoginForm({ onLogin, onToggleMode }: LoginFormProps) {
       })
       onLogin(user)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Login failed"
+      let errorMessage = "Login failed"
+
+      if (err instanceof Error) {
+        if (err.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please check your credentials and try again."
+        } else if (err.message.includes("Email not confirmed")) {
+          errorMessage = "Please check your email and click the verification link to confirm your account."
+        } else {
+          errorMessage = err.message
+        }
+      }
+
       setError(errorMessage)
       Analytics.trackError("login_error", errorMessage)
     } finally {
@@ -46,9 +59,10 @@ export function LoginForm({ onLogin, onToggleMode }: LoginFormProps) {
 
   const handleGoogleSignIn = async () => {
     try {
+      setError("")
       await SupabaseAuthService.getInstance().signInWithGoogle()
     } catch (err) {
-      setError("Google sign-in failed")
+      setError("Google sign-in failed. Please try again.")
     }
   }
 
@@ -82,11 +96,19 @@ export function LoginForm({ onLogin, onToggleMode }: LoginFormProps) {
               placeholder="Enter your password"
             />
           </div>
-          {error && <div className="text-sm text-destructive">{error}</div>}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Signing In..." : "Sign In"}
           </Button>
         </form>
+
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
@@ -117,6 +139,7 @@ export function LoginForm({ onLogin, onToggleMode }: LoginFormProps) {
           </svg>
           Continue with Google
         </Button>
+
         <div className="mt-4 text-center">
           <Button variant="link" onClick={onToggleMode}>
             Don't have an account? Sign up

@@ -13,6 +13,7 @@ export interface AuthUser {
   lastName: string
   profileImage?: string
   createdAt: Date
+  emailConfirmed?: boolean
 }
 
 export class SupabaseAuthService {
@@ -52,8 +53,11 @@ export class SupabaseAuthService {
 
     console.log("User created successfully:", data.user)
 
+    // Check if email confirmation is required
+    const emailConfirmed = data.user.email_confirmed_at !== null
+
     // The profile is created automatically via trigger
-    return this.mapUserToAuthUser(data.user, { first_name: firstName, last_name: lastName })
+    return this.mapUserToAuthUser(data.user, { first_name: firstName, last_name: lastName }, emailConfirmed)
   }
 
   async signIn(email: string, password: string): Promise<AuthUser> {
@@ -66,7 +70,7 @@ export class SupabaseAuthService {
     if (!data.user) throw new Error("No user returned")
 
     const profile = await this.getProfile(data.user.id)
-    return this.mapUserToAuthUser(data.user, profile)
+    return this.mapUserToAuthUser(data.user, profile, true)
   }
 
   async signInWithGoogle(): Promise<void> {
@@ -93,7 +97,7 @@ export class SupabaseAuthService {
     if (!user) return null
 
     const profile = await this.getProfile(user.id)
-    return this.mapUserToAuthUser(user, profile)
+    return this.mapUserToAuthUser(user, profile, true)
   }
 
   async updateProfile(updates: Partial<AuthUser>): Promise<AuthUser> {
@@ -115,7 +119,16 @@ export class SupabaseAuthService {
 
     if (error) throw error
 
-    return this.mapUserToAuthUser(user, data)
+    return this.mapUserToAuthUser(user, data, true)
+  }
+
+  async resendConfirmation(email: string): Promise<void> {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email,
+    })
+
+    if (error) throw error
   }
 
   private async getProfile(userId: string): Promise<Profile | null> {
@@ -129,7 +142,7 @@ export class SupabaseAuthService {
     return data
   }
 
-  private mapUserToAuthUser(user: User, profile: Partial<Profile> | null): AuthUser {
+  private mapUserToAuthUser(user: User, profile: Partial<Profile> | null, emailConfirmed = true): AuthUser {
     return {
       id: user.id,
       email: user.email!,
@@ -137,15 +150,18 @@ export class SupabaseAuthService {
       lastName: profile?.last_name || "",
       profileImage: profile?.profile_image || undefined,
       createdAt: new Date(user.created_at),
+      emailConfirmed,
     }
   }
 
   // Listen to auth state changes
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
     return supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state change:", event, session?.user?.id)
+
       if (session?.user) {
         const profile = await this.getProfile(session.user.id)
-        const authUser = this.mapUserToAuthUser(session.user, profile)
+        const authUser = this.mapUserToAuthUser(session.user, profile, true)
         callback(authUser)
       } else {
         callback(null)
@@ -156,3 +172,8 @@ export class SupabaseAuthService {
 
 // Export the singleton instance
 export const authService = SupabaseAuthService.getInstance()
+
+// Helper function for backward compatibility
+export async function getUser(): Promise<AuthUser | null> {
+  return authService.getCurrentUser()
+}
