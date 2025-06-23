@@ -41,35 +41,24 @@ export interface UserEvent {
   page: string
 }
 
-export class AnalyticsService {
-  private static instance: AnalyticsService | null = null
+class AnalyticsServiceImpl {
   private sessionId: string
   private sessionStart: number
-  private isClient: boolean
+  private initialized = false
 
-  private constructor() {
-    this.isClient = typeof window !== "undefined"
+  constructor() {
     this.sessionId = this.generateSessionId()
-    this.sessionStart = this.isClient ? Date.now() : 0
-
-    if (this.isClient) {
-      this.initializeSession()
-    }
-  }
-
-  static getInstance(): AnalyticsService {
-    if (!AnalyticsService.instance) {
-      AnalyticsService.instance = new AnalyticsService()
-    }
-    return AnalyticsService.instance
+    this.sessionStart = Date.now()
   }
 
   private generateSessionId(): string {
     return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   }
 
-  private initializeSession() {
-    if (!this.isClient) return
+  initialize() {
+    if (this.initialized || typeof window === "undefined") return
+
+    this.initialized = true
 
     // Track session start
     this.trackEvent("session_start", {
@@ -103,7 +92,7 @@ export class AnalyticsService {
   }
 
   async trackEvent(eventType: string, eventData: Record<string, any> = {}, userId?: string) {
-    if (!this.isClient) return
+    if (typeof window === "undefined") return
 
     try {
       const event: Omit<UserEvent, "id"> = {
@@ -140,9 +129,8 @@ export class AnalyticsService {
     }
   }
 
-  // Enhanced tracking methods
   async trackPageView(page: string, userId?: string) {
-    if (!this.isClient) return
+    if (typeof window === "undefined") return
 
     await this.trackEvent(
       "page_view",
@@ -203,10 +191,7 @@ export class AnalyticsService {
     )
   }
 
-  // Analytics data retrieval
   async getAnalyticsData(userId: string, timeRange: string): Promise<AnalyticsData> {
-    // This would typically fetch from your analytics database
-    // For now, return mock data
     return {
       overview: {
         totalSessions: 156,
@@ -240,7 +225,7 @@ export class AnalyticsService {
   }
 
   async exportAnalyticsData(userId: string, timeRange: string): Promise<void> {
-    if (!this.isClient) return
+    if (typeof window === "undefined") return
 
     const data = await this.getAnalyticsData(userId, timeRange)
     const dataStr = JSON.stringify(data, null, 2)
@@ -254,10 +239,39 @@ export class AnalyticsService {
   }
 }
 
-// Create a safe instance getter that can be used in both client and server
-export const getAnalyticsService = (): AnalyticsService | null => {
+// Lazy singleton that only creates instance when needed on client
+let analyticsInstance: AnalyticsServiceImpl | null = null
+
+export const getAnalyticsService = (): AnalyticsServiceImpl | null => {
   if (typeof window === "undefined") {
     return null
   }
-  return AnalyticsService.getInstance()
+
+  if (!analyticsInstance) {
+    analyticsInstance = new AnalyticsServiceImpl()
+    analyticsInstance.initialize()
+  }
+
+  return analyticsInstance
+}
+
+// Safe analytics functions that can be called from anywhere
+export const trackEvent = (eventType: string, eventData?: Record<string, any>, userId?: string) => {
+  const service = getAnalyticsService()
+  service?.trackEvent(eventType, eventData, userId)
+}
+
+export const trackPageView = (page: string, userId?: string) => {
+  const service = getAnalyticsService()
+  service?.trackPageView(page, userId)
+}
+
+export const trackUserAction = (action: string, details?: Record<string, any>, userId?: string) => {
+  const service = getAnalyticsService()
+  service?.trackUserAction(action, details, userId)
+}
+
+export const trackFeatureUsage = (feature: string, details?: Record<string, any>, userId?: string) => {
+  const service = getAnalyticsService()
+  service?.trackFeatureUsage(feature, details, userId)
 }

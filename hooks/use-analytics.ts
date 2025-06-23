@@ -4,27 +4,31 @@ import { useEffect, useState } from "react"
 import { getAnalyticsService, type AnalyticsData } from "@/lib/analytics-service"
 
 export function useAnalytics() {
-  const [analytics, setAnalytics] = useState<ReturnType<typeof getAnalyticsService>>(null)
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
     const service = getAnalyticsService()
-    setAnalytics(service)
+    setIsReady(!!service)
   }, [])
 
   const trackEvent = (eventType: string, eventData?: Record<string, any>, userId?: string) => {
-    analytics?.trackEvent(eventType, eventData, userId)
+    const service = getAnalyticsService()
+    service?.trackEvent(eventType, eventData, userId)
   }
 
   const trackPageView = (page: string, userId?: string) => {
-    analytics?.trackPageView(page, userId)
+    const service = getAnalyticsService()
+    service?.trackPageView(page, userId)
   }
 
   const trackUserAction = (action: string, details?: Record<string, any>, userId?: string) => {
-    analytics?.trackUserAction(action, details, userId)
+    const service = getAnalyticsService()
+    service?.trackUserAction(action, details, userId)
   }
 
   const trackFeatureUsage = (feature: string, details?: Record<string, any>, userId?: string) => {
-    analytics?.trackFeatureUsage(feature, details, userId)
+    const service = getAnalyticsService()
+    service?.trackFeatureUsage(feature, details, userId)
   }
 
   return {
@@ -32,7 +36,7 @@ export function useAnalytics() {
     trackPageView,
     trackUserAction,
     trackFeatureUsage,
-    isReady: !!analytics,
+    isReady,
   }
 }
 
@@ -57,11 +61,10 @@ export function useAnalyticsData(userId: string, timeRange: "7d" | "30d" | "90d"
       }
     }
 
-    if (userId) {
+    if (userId && typeof window !== "undefined") {
       fetchData()
     }
   }, [userId, timeRange])
 
   return { data, loading, error }
 }
-//   }

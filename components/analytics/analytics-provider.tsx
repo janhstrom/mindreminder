@@ -1,10 +1,7 @@
 "use client"
 
 import type React from "react"
-
 import { useEffect } from "react"
-import Script from "next/script"
-import { CookieConsent } from "./cookie-consent"
 
 interface AnalyticsProviderProps {
   children: React.ReactNode
@@ -12,49 +9,39 @@ interface AnalyticsProviderProps {
 
 export function AnalyticsProvider({ children }: AnalyticsProviderProps) {
   useEffect(() => {
-    // Initialize Google Analytics with consent mode
-    if (typeof window !== "undefined") {
-      window.gtag?.("consent", "default", {
-        analytics_storage: "denied",
-        ad_storage: "denied",
-        wait_for_update: 500,
-      })
+    // Only run on client side
+    if (typeof window === "undefined") return
+
+    // Initialize Google Analytics
+    const initGA = () => {
+      // Google Analytics 4
+      const script = document.createElement("script")
+      script.async = true
+      script.src = "https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"
+      document.head.appendChild(script)
+
+      script.onload = () => {
+        window.dataLayer = window.dataLayer || []
+        function gtag(...args: any[]) {
+          window.dataLayer.push(args)
+        }
+        window.gtag = gtag
+
+        gtag("js", new Date())
+        gtag("config", "GA_MEASUREMENT_ID", {
+          page_title: document.title,
+          page_location: window.location.href,
+        })
+      }
+    }
+
+    // Initialize analytics after a short delay to ensure DOM is ready
+    const timer = setTimeout(initGA, 100)
+
+    return () => {
+      clearTimeout(timer)
     }
   }, [])
 
-  return (
-    <>
-      {/* Google Analytics 4 */}
-      <Script src="https://www.googletagmanager.com/gtag/js?id=G-81MHDKZYCD" strategy="afterInteractive" />
-      <Script id="google-analytics" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          
-          gtag('config', 'G-81MHDKZYCD', {
-            page_title: document.title,
-            page_location: window.location.href,
-          });
-        `}
-      </Script>
-
-      {/* Hotjar - User behavior analytics */}
-      <Script id="hotjar" strategy="afterInteractive">
-        {`
-          (function(h,o,t,j,a,r){
-            h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
-            h._hjSettings={hjid:3000000,hjsv:6}; // Replace with your Hotjar ID
-            a=o.getElementsByTagName('head')[0];
-            r=o.createElement('script');r.async=1;
-            r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
-            a.appendChild(r);
-          })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
-        `}
-      </Script>
-
-      {children}
-      <CookieConsent />
-    </>
-  )
+  return <>{children}</>
 }
