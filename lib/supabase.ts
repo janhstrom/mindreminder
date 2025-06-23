@@ -98,6 +98,65 @@ export type Database = {
           is_favorite?: boolean
         }
       }
+      micro_actions: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          description: string | null
+          category: string
+          duration: string
+          frequency: string
+          time_of_day: string | null
+          habit_stack: string | null
+          is_active: boolean
+          current_streak: number
+          best_streak: number
+          total_completions: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          title: string
+          description?: string | null
+          category: string
+          duration: string
+          frequency?: string
+          time_of_day?: string | null
+          habit_stack?: string | null
+          is_active?: boolean
+        }
+        Update: {
+          title?: string
+          description?: string | null
+          category?: string
+          duration?: string
+          frequency?: string
+          time_of_day?: string | null
+          habit_stack?: string | null
+          is_active?: boolean
+        }
+      }
+      micro_action_completions: {
+        Row: {
+          id: string
+          micro_action_id: string
+          user_id: string
+          completed_at: string
+          completion_date: string
+          notes: string | null
+        }
+        Insert: {
+          micro_action_id: string
+          user_id: string
+          completion_date?: string
+          notes?: string | null
+        }
+        Update: {
+          notes?: string | null
+        }
+      }
     }
   }
 }
