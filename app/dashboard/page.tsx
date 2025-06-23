@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Plus, Bell, Quote, Users, Calendar } from "lucide-react"
+import { Plus, Bell, Quote, Calendar } from "lucide-react"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { Analytics } from "@/lib/analytics"
 import { NotificationService } from "@/lib/notifications"
@@ -26,6 +26,7 @@ import type { AuthUser as User, Reminder } from "@/lib/auth-supabase"
 import { SupabaseReminderService } from "@/lib/reminders-supabase"
 import type { FavoriteQuote } from "@/lib/quotes-supabase"
 import { SupabaseQuoteService } from "@/lib/quotes-supabase"
+import { FriendsDashboard } from "@/components/friends/friends-dashboard"
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
@@ -421,20 +422,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activeTab === "friends" && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold">Friends</h2>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center py-12">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">Friends feature coming soon!</h3>
-                    <p className="text-muted-foreground">Connect with friends and share reminders</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          {activeTab === "friends" && <FriendsDashboard user={user} />}
 
           {activeTab === "settings" && (
             <div className="space-y-6">
