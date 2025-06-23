@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { authService, type AuthUser } from "@/lib/auth-supabase"
+import { SupabaseAuthService, type AuthUser } from "@/lib/auth-supabase"
 
 interface AuthContextType {
   user: AuthUser | null
@@ -11,7 +11,6 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
   signOut: () => Promise<void>
-  signInWithGoogle: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,64 +20,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check for existing session
-    const checkUser = async () => {
+    // Get initial user
+    const getInitialUser = async () => {
       try {
-        const currentUser = await authService.getCurrentUser()
+        const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
         setUser(currentUser)
       } catch (error) {
-        console.error("Error checking auth:", error)
+        console.error("Error getting initial user:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    checkUser()
+    getInitialUser()
 
     // Listen for auth changes
-    const { data } = authService.onAuthStateChange((user) => {
+    const {
+      data: { subscription },
+    } = SupabaseAuthService.getInstance().onAuthStateChange((user) => {
       setUser(user)
       setLoading(false)
     })
 
-    return () => {
-      data.subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const user = await authService.signIn(email, password)
+    const user = await SupabaseAuthService.getInstance().signIn(email, password)
     setUser(user)
   }
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    const user = await authService.signUp(email, password, firstName, lastName)
+    const user = await SupabaseAuthService.getInstance().signUp(email, password, firstName, lastName)
     setUser(user)
   }
 
   const signOut = async () => {
-    await authService.signOut()
+    await SupabaseAuthService.getInstance().signOut()
     setUser(null)
   }
 
-  const signInWithGoogle = async () => {
-    await authService.signInWithGoogle()
-  }
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signIn,
-        signUp,
-        signOut,
-        signInWithGoogle,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
