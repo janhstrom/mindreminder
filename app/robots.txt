@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Disallow admin and private areas
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /admin/
+
+# Allow important pages
+Allow: /
+Allow: /features
+Allow: /about
+Allow: /contact
+
+# Sitemap location
+Sitemap: https://mindreminder.com/sitemap.xml
+
+# Crawl delay (optional)
+Crawl-delay: 1
