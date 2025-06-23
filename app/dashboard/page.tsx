@@ -8,23 +8,19 @@ import { Plus, Quote, Bell, Heart, Sparkles, Target, TrendingUp, Zap } from "luc
 import { QuoteGenerator } from "@/components/quotes/quote-generator"
 import { ReminderForm } from "@/components/reminders/reminder-form"
 import { ReminderCard } from "@/components/reminders/reminder-card"
-import { Header } from "@/components/dashboard/header"
-import { Sidebar } from "@/components/dashboard/sidebar"
-import { authService, type AuthUser } from "@/lib/auth-supabase"
-import { getReminders } from "@/lib/reminders-supabase"
+import { getUser } from "@/lib/auth-fallback"
+import { getReminders } from "@/lib/reminders"
 import { microActionService, type MicroAction } from "@/lib/micro-actions-service"
-import type { Reminder } from "@/types"
+import type { User, Reminder } from "@/types"
 import { MicroActionForm } from "@/components/micro-actions/micro-action-form"
 import { MicroActionCard } from "@/components/micro-actions/micro-action-card"
-import { useRouter } from "next/navigation"
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [microActions, setMicroActions] = useState<MicroAction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("inspiration")
   const [showReminderForm, setShowReminderForm] = useState(false)
   const [showMicroActionForm, setShowMicroActionForm] = useState(false)
@@ -35,63 +31,32 @@ export default function DashboardPage() {
     weeklyCompletions: 0,
   })
 
-  const router = useRouter()
-
   useEffect(() => {
-    initializeAuth()
+    loadDashboardData()
   }, [])
 
-  const initializeAuth = async () => {
+  const loadDashboardData = async () => {
     try {
-      console.log("🔍 Starting auth initialization...")
+      console.log("🔍 Loading dashboard data...")
       setLoading(true)
       setError(null)
 
-      // Check if user is already authenticated
-      console.log("🔍 Checking current user...")
-      const currentUser = await authService.getCurrentUser()
-      console.log("🔍 Current user result:", currentUser)
+      // Get current user (using fallback auth for now)
+      console.log("🔍 Getting user...")
+      const currentUser = await getUser()
+      console.log("🔍 User result:", currentUser)
 
       if (!currentUser) {
-        console.log("❌ No authenticated user found, redirecting to home")
-        router.push("/")
+        console.log("❌ No user found, redirecting to home")
+        window.location.href = "/"
         return
       }
 
-      console.log("✅ User authenticated:", currentUser.email)
+      console.log("✅ User found:", currentUser.name)
       setUser(currentUser)
 
-      console.log("🔍 Loading dashboard data...")
-      await loadDashboardData(currentUser)
-
-      // Listen for auth state changes
-      console.log("🔍 Setting up auth state listener...")
-      authService.onAuthStateChange((user) => {
-        console.log("🔍 Auth state changed:", user?.email || "null")
-        if (!user) {
-          console.log("❌ User logged out, redirecting to home")
-          router.push("/")
-        } else {
-          setUser(user)
-          loadDashboardData(user)
-        }
-      })
-
-      console.log("✅ Auth initialization complete")
-    } catch (error) {
-      console.error("❌ Auth initialization error:", error)
-      setError(error instanceof Error ? error.message : "Authentication failed")
-      // Don't redirect on error, show error state instead
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadDashboardData = async (currentUser: AuthUser) => {
-    try {
-      console.log("🔍 Loading dashboard data for user:", currentUser.id)
-
       // Load reminders and micro-actions in parallel
+      console.log("🔍 Loading user data...")
       const [userReminders, userMicroActions, microActionStats] = await Promise.all([
         getReminders(currentUser.id).catch((err) => {
           console.error("❌ Error loading reminders:", err)
@@ -111,30 +76,23 @@ export default function DashboardPage() {
       setMicroActions(userMicroActions || [])
       setStats(microActionStats)
 
-      console.log("✅ Dashboard data loaded successfully")
-      console.log("📊 Stats:", { reminders: userReminders?.length, microActions: userMicroActions?.length })
+      console.log("✅ Dashboard loaded successfully")
+      console.log("📊 Data:", {
+        reminders: userReminders?.length,
+        microActions: userMicroActions?.length,
+        stats: microActionStats,
+      })
     } catch (err) {
       console.error("❌ Error loading dashboard:", err)
-      setError("Failed to load dashboard data")
+      setError(err instanceof Error ? err.message : "Failed to load dashboard")
+    } finally {
+      setLoading(false)
     }
-  }
-
-  const handleLogout = async () => {
-    try {
-      await authService.signOut()
-      router.push("/")
-    } catch (error) {
-      console.error("Logout error:", error)
-    }
-  }
-
-  const handleProfileClick = () => {
-    router.push("/settings")
   }
 
   const handleReminderAdded = () => {
     setShowReminderForm(false)
-    if (user) loadDashboardData(user)
+    loadDashboardData()
   }
 
   const handleMicroActionAdded = async (microActionData: any) => {
@@ -143,7 +101,7 @@ export default function DashboardPage() {
 
       await microActionService.createMicroAction(user.id, microActionData)
       setShowMicroActionForm(false)
-      loadDashboardData(user) // Reload to show new micro-action
+      loadDashboardData()
     } catch (error) {
       console.error("Error creating micro-action:", error)
     }
@@ -157,22 +115,18 @@ export default function DashboardPage() {
       if (!action) return
 
       if (action.completedToday) {
-        // Uncomplete
         await microActionService.uncompleteMicroAction(user.id, id)
       } else {
-        // Complete
         await microActionService.completeMicroAction(user.id, id)
       }
 
-      // Reload data to get updated streaks and stats
-      loadDashboardData(user)
+      loadDashboardData()
     } catch (error) {
       console.error("Error updating micro-action completion:", error)
     }
   }
 
   const handleMicroActionEdit = (microAction: MicroAction) => {
-    // TODO: Implement edit functionality
     console.log("Edit micro-action:", microAction)
   }
 
@@ -181,77 +135,64 @@ export default function DashboardPage() {
       if (!user) return
 
       await microActionService.deleteMicroAction(user.id, id)
-      loadDashboardData(user) // Reload to remove deleted action
+      loadDashboardData()
     } catch (error) {
       console.error("Error deleting micro-action:", error)
     }
   }
 
-  // Show loading state
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <div className="space-y-2">
             <h2 className="text-xl font-semibold">Loading MindReMinder...</h2>
-            <p className="text-muted-foreground">Setting up your personal reminder space</p>
-            <p className="text-xs text-muted-foreground">Check browser console for debug info</p>
+            <p className="text-gray-600">Setting up your personal reminder space</p>
+            <p className="text-xs text-gray-500">Check console for debug info</p>
           </div>
-          {/* Emergency bypass button for debugging */}
-          <Button
-            variant="outline"
-            onClick={() => {
-              console.log("🚨 Emergency bypass activated")
-              setLoading(false)
-              setError("Debug mode - check console")
-            }}
-            className="mt-4"
-          >
-            Debug Mode (Emergency)
-          </Button>
         </div>
       </div>
     )
   }
 
-  // Show error state
+  // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-4 max-w-md">
-          <h2 className="text-xl font-semibold text-destructive">Authentication Error</h2>
-          <p className="text-muted-foreground">{error}</p>
+          <h2 className="text-xl font-semibold text-red-600">Dashboard Error</h2>
+          <p className="text-gray-600">{error}</p>
           <div className="space-y-2">
-            <Button onClick={() => router.push("/")} className="w-full">
-              Go to Sign In
+            <Button onClick={() => (window.location.href = "/")} className="w-full">
+              Go to Home
             </Button>
             <Button
               variant="outline"
               onClick={() => {
                 setError(null)
-                setLoading(true)
-                initializeAuth()
+                loadDashboardData()
               }}
               className="w-full"
             >
               Try Again
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Check browser console for more details</p>
+          <p className="text-xs text-gray-500">Check browser console for details</p>
         </div>
       </div>
     )
   }
 
-  // Show auth required state
+  // No user state
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center space-y-4">
           <h2 className="text-xl font-semibold">Authentication Required</h2>
-          <p className="text-muted-foreground">Please sign in to access your dashboard</p>
-          <Button onClick={() => router.push("/")}>Go to Sign In</Button>
+          <p className="text-gray-600">Please sign in to access your dashboard</p>
+          <Button onClick={() => (window.location.href = "/")}>Go to Sign In</Button>
         </div>
       </div>
     )
@@ -261,311 +202,341 @@ export default function DashboardPage() {
   const totalMicroActions = stats.totalActive
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Sidebar Overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar */}
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
-
-      {/* Main Content */}
-      <div className="md:ml-64">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <Header
-          user={user}
-          onLogout={handleLogout}
-          onProfileClick={handleProfileClick}
-          onMenuClick={() => setSidebarOpen(true)}
-        />
-
-        {/* Dashboard Content */}
-        <main className="p-6">
-          {/* Welcome Section */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">Welcome back, {user.firstName || user.email}! ✨</h1>
-                <p className="text-muted-foreground mt-2">Your personal space for inspiration and habit building</p>
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={() => setShowReminderForm(true)} variant="outline">
-                  <Bell className="h-4 w-4 mr-2" />
-                  New Reminder
-                </Button>
-                <Button onClick={() => setShowMicroActionForm(true)}>
-                  <Target className="h-4 w-4 mr-2" />
-                  New Micro-Action
-                </Button>
-              </div>
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.name || "Friend"}! ✨</h1>
+              <p className="text-gray-600 mt-2">Your personal space for inspiration and habit building</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowReminderForm(true)}
+                variant="outline"
+                className="border-blue-200 text-blue-700 hover:bg-blue-50"
+              >
+                <Bell className="h-4 w-4 mr-2" />
+                New Reminder
+              </Button>
+              <Button onClick={() => setShowMicroActionForm(true)} className="bg-purple-600 hover:bg-purple-700">
+                <Target className="h-4 w-4 mr-2" />
+                New Micro-Action
+              </Button>
             </div>
           </div>
+        </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Reminders</CardTitle>
-                <Bell className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{reminders.filter((r) => r.isActive).length}</div>
-                <p className="text-xs text-muted-foreground">keeping you inspired</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Active Habits</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{totalMicroActions}</div>
-                <p className="text-xs text-muted-foreground">micro-actions building</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Best Streak</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{maxStreak}</div>
-                <p className="text-xs text-muted-foreground">days strong</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-                <Zap className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {stats.completedToday}/{totalMicroActions}
-                </div>
-                <p className="text-xs text-muted-foreground">micro-actions done</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Debug Info */}
-          <div className="mb-4 p-4 bg-muted/50 rounded-lg text-sm">
+        {/* Debug Info */}
+        <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+          <h3 className="font-semibold mb-2">🔧 Debug Info</h3>
+          <div className="text-sm space-y-1">
             <p>
-              <strong>Debug Info:</strong>
+              <strong>User:</strong> {user.name} ({user.id})
             </p>
-            <p>User ID: {user.id}</p>
-            <p>Email: {user.email}</p>
-            <p>Reminders: {reminders.length}</p>
-            <p>Micro-actions: {microActions.length}</p>
+            <p>
+              <strong>Reminders:</strong> {reminders.length}
+            </p>
+            <p>
+              <strong>Micro-actions:</strong> {microActions.length}
+            </p>
+            <p>
+              <strong>Stats:</strong> {stats.completedToday}/{stats.totalActive} completed today
+            </p>
           </div>
+        </div>
 
-          {/* Main Content Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="inspiration" className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4" />
-                Daily Inspiration
-              </TabsTrigger>
-              <TabsTrigger value="reminders" className="flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                My Reminders
-              </TabsTrigger>
-              <TabsTrigger value="habits" className="flex items-center gap-2">
-                <Target className="h-4 w-4" />
-                Habit Builder
-              </TabsTrigger>
-              <TabsTrigger value="quotes" className="flex items-center gap-2">
-                <Quote className="h-4 w-4" />
-                Quote Generator
-              </TabsTrigger>
-            </TabsList>
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Active Reminders</CardTitle>
+              <Bell className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{reminders.filter((r) => r.isActive).length}</div>
+              <p className="text-xs text-blue-600">keeping you inspired</p>
+            </CardContent>
+          </Card>
 
-            <TabsContent value="inspiration" className="space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Today's Inspiration */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center">
-                      <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
-                      Today's Inspiration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-gradient-to-r from-primary/10 to-secondary/10 p-6 rounded-lg">
-                      <blockquote className="text-lg italic text-center mb-4">
-                        "The journey of a thousand miles begins with one step."
-                      </blockquote>
-                      <footer className="text-center text-sm text-muted-foreground">— Lao Tzu</footer>
-                    </div>
-                    <div className="mt-4 flex gap-2">
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Heart className="h-4 w-4 mr-1" />
-                        Save
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <Quote className="h-4 w-4 mr-1" />
-                        New Quote
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Active Habits</CardTitle>
+              <Target className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{totalMicroActions}</div>
+              <p className="text-xs text-purple-600">micro-actions building</p>
+            </CardContent>
+          </Card>
 
-                {/* Quick Actions */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Quick Reminders</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto p-4"
-                      onClick={() => setShowReminderForm(true)}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium">💭 Daily Affirmation</div>
-                        <div className="text-sm text-muted-foreground">Remind me to practice self-love</div>
-                      </div>
-                    </Button>
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Best Streak</CardTitle>
+              <TrendingUp className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">{maxStreak}</div>
+              <p className="text-xs text-orange-600">days strong</p>
+            </CardContent>
+          </Card>
 
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto p-4"
-                      onClick={() => setShowReminderForm(true)}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium">🌅 Morning Motivation</div>
-                        <div className="text-sm text-muted-foreground">Start my day with intention</div>
-                      </div>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start h-auto p-4"
-                      onClick={() => setShowReminderForm(true)}
-                    >
-                      <div className="text-left">
-                        <div className="font-medium">🙏 Gratitude Moment</div>
-                        <div className="text-sm text-muted-foreground">Pause and appreciate</div>
-                      </div>
-                    </Button>
-                  </CardContent>
-                </Card>
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Completed Today</CardTitle>
+              <Zap className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">
+                {stats.completedToday}/{totalMicroActions}
               </div>
-            </TabsContent>
+              <p className="text-xs text-green-600">micro-actions done</p>
+            </CardContent>
+          </Card>
+        </div>
 
-            <TabsContent value="reminders" className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Your Reminders</h2>
-                  <p className="text-muted-foreground">Gentle nudges for what matters to you</p>
-                </div>
-                <Button onClick={() => setShowReminderForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Reminder
-                </Button>
-              </div>
+        {/* Main Content Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="inspiration" className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Daily Inspiration
+            </TabsTrigger>
+            <TabsTrigger value="reminders" className="flex items-center gap-2">
+              <Bell className="h-4 w-4" />
+              My Reminders
+            </TabsTrigger>
+            <TabsTrigger value="habits" className="flex items-center gap-2">
+              <Target className="h-4 w-4" />
+              Habit Builder
+            </TabsTrigger>
+            <TabsTrigger value="quotes" className="flex items-center gap-2">
+              <Quote className="h-4 w-4" />
+              Quote Generator
+            </TabsTrigger>
+          </TabsList>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {reminders.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                    <Bell className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No reminders yet</h3>
-                    <p className="text-muted-foreground mb-4">Create your first gentle reminder</p>
-                    <Button onClick={() => setShowReminderForm(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Reminder
-                    </Button>
-                  </div>
-                ) : (
-                  reminders.map((reminder) => (
-                    <ReminderCard
-                      key={reminder.id}
-                      reminder={reminder}
-                      onUpdate={() => user && loadDashboardData(user)}
-                    />
-                  ))
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="habits" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold">Habit Builder</h2>
-                  <p className="text-muted-foreground">Build lasting habits through tiny daily actions</p>
-                </div>
-                <Button onClick={() => setShowMicroActionForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Micro-Action
-                </Button>
-              </div>
-
-              {microActions.length === 0 ? (
-                <div className="text-center py-12">
-                  <Target className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No micro-actions yet</h3>
-                  <p className="text-muted-foreground mb-4">Create your first tiny habit to get started</p>
-                  <Button onClick={() => setShowMicroActionForm(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Micro-Action
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {microActions.map((action) => (
-                    <MicroActionCard
-                      key={action.id}
-                      microAction={action}
-                      onComplete={handleMicroActionComplete}
-                      onEdit={handleMicroActionEdit}
-                      onDelete={handleMicroActionDelete}
-                    />
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="quotes">
+          <TabsContent value="inspiration" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <Quote className="h-5 w-5 mr-2" />
-                    AI Quote Generator
+                    <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
+                    Today's Inspiration
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <QuoteGenerator user={user} />
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+                    <blockquote className="text-lg italic text-center mb-4">
+                      "The journey of a thousand miles begins with one step."
+                    </blockquote>
+                    <footer className="text-center text-sm text-gray-600">— Lao Tzu</footer>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button size="sm" variant="outline" className="flex-1">
+                      <Heart className="h-4 w-4 mr-1" />
+                      Save
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1">
+                      <Quote className="h-4 w-4 mr-1" />
+                      New Quote
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
 
-          {/* Reminder Form Modal */}
-          {showReminderForm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-              <div className="bg-background rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <ReminderForm onSave={handleReminderAdded} onCancel={() => setShowReminderForm(false)} />
-              </div>
-            </div>
-          )}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quick Reminders</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4"
+                    onClick={() => setShowReminderForm(true)}
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">💭 Daily Affirmation</div>
+                      <div className="text-sm text-gray-500">Remind me to practice self-love</div>
+                    </div>
+                  </Button>
 
-          {/* Micro-Action Form Modal */}
-          {showMicroActionForm && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-              <div className="bg-background rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-                <MicroActionForm onSave={handleMicroActionAdded} onCancel={() => setShowMicroActionForm(false)} />
-              </div>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4"
+                    onClick={() => setShowReminderForm(true)}
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">🌅 Morning Motivation</div>
+                      <div className="text-sm text-gray-500">Start my day with intention</div>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start h-auto p-4"
+                    onClick={() => setShowReminderForm(true)}
+                  >
+                    <div className="text-left">
+                      <div className="font-medium">🙏 Gratitude Moment</div>
+                      <div className="text-sm text-gray-500">Pause and appreciate</div>
+                    </div>
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-          )}
-        </main>
+          </TabsContent>
+
+          <TabsContent value="reminders" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Your Reminders</h2>
+                <p className="text-gray-600">Gentle nudges for what matters to you</p>
+              </div>
+              <Button onClick={() => setShowReminderForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Reminder
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {reminders.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <Bell className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No reminders yet</h3>
+                  <p className="text-gray-600 mb-4">Create your first gentle reminder</p>
+                  <Button onClick={() => setShowReminderForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Reminder
+                  </Button>
+                </div>
+              ) : (
+                reminders.map((reminder) => (
+                  <ReminderCard key={reminder.id} reminder={reminder} onUpdate={loadDashboardData} />
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="habits" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Habit Builder</h2>
+                <p className="text-gray-600">Build lasting habits through tiny daily actions</p>
+              </div>
+              <Button onClick={() => setShowMicroActionForm(true)} className="bg-purple-600 hover:bg-purple-700">
+                <Plus className="h-4 w-4 mr-2" />
+                New Micro-Action
+              </Button>
+            </div>
+
+            {microActions.length === 0 ? (
+              <div className="text-center py-12">
+                <Target className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No micro-actions yet</h3>
+                <p className="text-gray-600 mb-4">Create your first tiny habit to get started</p>
+                <Button onClick={() => setShowMicroActionForm(true)} className="bg-purple-600 hover:bg-purple-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Micro-Action
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <Target className="h-5 w-5 mr-2 text-purple-600" />
+                      Today's Micro-Actions
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {microActions.map((action) => (
+                      <MicroActionCard
+                        key={action.id}
+                        microAction={action}
+                        onComplete={handleMicroActionComplete}
+                        onEdit={handleMicroActionEdit}
+                        onDelete={handleMicroActionDelete}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <TrendingUp className="h-5 w-5 mr-2 text-orange-600" />
+                      Your Progress
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium">Weekly Goal</span>
+                        <span className="text-sm text-gray-600">
+                          {stats.weeklyCompletions}/{totalMicroActions * 7} actions
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-purple-500 h-2 rounded-full"
+                          style={{
+                            width: `${Math.min(100, (stats.weeklyCompletions / (totalMicroActions * 7)) * 100)}%`,
+                          }}
+                        ></div>
+                      </div>
+                      <p className="text-xs text-purple-600 mt-1">
+                        {Math.round((stats.weeklyCompletions / (totalMicroActions * 7)) * 100)}% complete - keep it up!
+                      </p>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-lg">
+                      <h3 className="font-semibold text-purple-900 mb-2">🎯 Habit Insight</h3>
+                      <p className="text-purple-800 text-sm">
+                        {maxStreak > 0
+                          ? `Amazing! Your best streak is ${maxStreak} days. Consistency is building your habits!`
+                          : "Start your first micro-action today to begin building momentum!"}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="quotes">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Quote className="h-5 w-5 mr-2 text-blue-600" />
+                  AI Quote Generator
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <QuoteGenerator user={user} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Reminder Form Modal */}
+        {showReminderForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              <ReminderForm onSave={handleReminderAdded} onCancel={() => setShowReminderForm(false)} />
+            </div>
+          </div>
+        )}
+
+        {/* Micro-Action Form Modal */}
+        {showMicroActionForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <MicroActionForm onSave={handleMicroActionAdded} onCancel={() => setShowMicroActionForm(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
