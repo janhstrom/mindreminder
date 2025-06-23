@@ -4,7 +4,20 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Quote, Bell, Heart, Sparkles, Target, TrendingUp, Zap, ArrowLeft, Clock, Calendar } from "lucide-react"
+import {
+  Plus,
+  Quote,
+  Bell,
+  Heart,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Zap,
+  ArrowLeft,
+  Clock,
+  Calendar,
+  Settings,
+} from "lucide-react"
 import Link from "next/link"
 import {
   DashboardDataService,
@@ -90,6 +103,12 @@ export default function DashboardPage() {
                 <Target className="h-4 w-4 mr-2" />
                 New Micro-Action
               </Button>
+              <Link href="/settings">
+                <Button variant="outline" className="border-gray-200 text-gray-700 hover:bg-gray-50">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
