@@ -1,611 +1,205 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogTitle,
-  DialogDescription,
-  DialogHeader,
-} from "@/components/ui/dialog"
-import { LoginForm } from "@/components/auth/login-form"
-import { RegisterForm } from "@/components/auth/register-form"
-import {
-  Brain,
-  Users,
-  MapPin,
-  X,
-  CheckCircle,
-  ArrowRight,
-  Star,
-  Target,
-  TrendingUp,
-  Repeat,
-  Zap,
-  Apple,
-  Play,
-} from "lucide-react"
-import { useRouter } from "next/navigation"
-import { StructuredData } from "@/components/seo/structured-data"
-import Link from "next/link"
+import { Loader2, Plus, Calendar, Users, BarChart3, Bell, Quote } from "lucide-react"
 
-import { useTrackEvent } from "@/hooks/use-analytics"
-import { Analytics } from "@/lib/analytics"
-import { CookieConsent } from "@/components/analytics/cookie-consent"
-import { SupabaseAuthService } from "@/lib/auth-supabase"
-import type { AuthUser } from "@/lib/auth-supabase"
-
-function HomePageContent() {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [isLogin, setIsLogin] = useState(true)
-  const [authDialogOpen, setAuthDialogOpen] = useState(false)
-  const router = useRouter()
-
-  const { trackClick, trackFeature } = useTrackEvent()
+export default function DashboardPage() {
+  const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    const loadUser = async () => {
-      const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
-      if (currentUser) {
-        setUser(currentUser)
-      }
+    console.log("🚀 Dashboard useEffect triggered")
+
+    // Simple test to see if this runs
+    const timer = setTimeout(() => {
+      console.log("⏰ Timer executed - setting loading to false")
+      setLoading(false)
+      setUser({
+        id: "test-user",
+        name: "Test User",
+        email: "test@example.com",
+        role: "user",
+      })
+      console.log("✅ User set, loading complete")
+    }, 1000)
+
+    return () => {
+      console.log("🧹 Cleanup timer")
+      clearTimeout(timer)
     }
+  }, [])
 
-    loadUser()
+  console.log("🔄 Dashboard render - loading:", loading, "user:", user)
 
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = SupabaseAuthService.getInstance().onAuthStateChange((user) => {
-      setUser(user)
-      if (user) {
-        // Small delay to ensure state is updated
-        setTimeout(() => {
-          router.push("/dashboard")
-        }, 100)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [router])
-
-  const handleLogin = (loggedInUser: AuthUser) => {
-    Analytics.trackLogin("email")
-    Analytics.setUserProperties({
-      user_type: "free",
-      signup_method: "email",
-      user_id: loggedInUser.id,
-    })
-    setUser(loggedInUser)
-    setAuthDialogOpen(false)
-    // Navigate to dashboard
-    router.push("/dashboard")
+  if (loading) {
+    console.log("⏳ Showing loading state")
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-blue-600" />
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold">Loading MindReMinder...</h2>
+            <p className="text-gray-600">Setting up your dashboard</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
-  const handleGetStarted = () => {
-    Analytics.trackGetStartedClick("hero")
-    if (user) {
-      router.push("/dashboard")
-    } else {
-      setAuthDialogOpen(true)
-    }
-  }
+  console.log("✅ Showing dashboard content")
 
   return (
-    <>
-      <StructuredData />
-      <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-          <div className="container mx-auto px-4 flex h-16 items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">MR</span>
-              </div>
-              <h1 className="text-xl font-bold text-primary">MindReMinder</h1>
-            </Link>
-
-            <nav className="flex items-center space-x-4">
-              <Link href="/resources" className="text-sm font-medium hover:text-primary transition-colors">
-                Resources
-              </Link>
-              {user ? (
-                <Button onClick={() => router.push("/dashboard")}>Go to Dashboard</Button>
-              ) : (
-                <Dialog open={authDialogOpen} onOpenChange={setAuthDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>Sign In</Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>{isLogin ? "Sign In to MindReMinder" : "Create MindReMinder Account"}</DialogTitle>
-                      <DialogDescription>
-                        {isLogin
-                          ? "Welcome back! Please sign in to your account."
-                          : "Join MindReMinder to start building better habits with micro-actions."}
-                      </DialogDescription>
-                    </DialogHeader>
-                    {isLogin ? (
-                      <LoginForm onLogin={handleLogin} onToggleMode={() => setIsLogin(false)} />
-                    ) : (
-                      <RegisterForm onRegister={handleLogin} onToggleMode={() => setIsLogin(true)} />
-                    )}
-                  </DialogContent>
-                </Dialog>
-              )}
-            </nav>
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.name || "User"}! 👋</h1>
+              <p className="text-gray-600 mt-2">Ready to build some life-changing habits today?</p>
+            </div>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              New Micro-Action
+            </Button>
           </div>
-        </header>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Active Habits</CardTitle>
+              <Calendar className="h-4 w-4 text-blue-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">8</div>
+              <p className="text-xs text-green-600">+2 this week</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Streak Days</CardTitle>
+              <Bell className="h-4 w-4 text-orange-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">23</div>
+              <p className="text-xs text-orange-600">longest: 45 days</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Completed Today</CardTitle>
+              <BarChart3 className="h-4 w-4 text-green-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">5/7</div>
+              <p className="text-xs text-green-600">71% completion</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Accountability Partners</CardTitle>
+              <Users className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-gray-900">3</div>
+              <p className="text-xs text-purple-600">2 active today</p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Main Content */}
-        <main>
-          {/* Hero Section */}
-          <section className="py-20 px-4 bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-            <div className="container mx-auto text-center max-w-4xl">
-              <Badge variant="secondary" className="mb-4">
-                <Target className="w-3 h-3 mr-1" />
-                Habit Formation & Micro-Actions
-              </Badge>
-
-              <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                Build Life-Changing Habits Through Tiny Daily Actions
-              </h1>
-
-              <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-                MindReMinder helps you create lasting change by breaking big goals into small, manageable micro-actions.
-                Get reminded to take tiny steps that compound into extraordinary results over time.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-                <Button size="lg" onClick={handleGetStarted} className="text-lg px-8">
-                  Start Building Habits
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="text-lg px-8"
-                  onClick={() => Analytics.trackDemoRequest()}
-                >
-                  See How It Works
-                </Button>
-              </div>
-
-              <div className="flex items-center justify-center space-x-6 text-sm text-muted-foreground">
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-                  Free to start
-                </div>
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-                  Science-backed approach
-                </div>
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-1 text-green-500" />
-                  Proven results
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* The Science Behind Micro-Actions */}
-          <section className="py-16 px-4" aria-labelledby="science-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-12">
-                <h2 id="science-heading" className="text-3xl font-bold mb-4">
-                  Why Micro-Actions Work Better Than Big Goals
-                </h2>
-                <p className="text-lg text-muted-foreground">
-                  Research shows that tiny, consistent actions create lasting change more effectively than dramatic
-                  lifestyle overhauls.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8">
-                <article className="text-center">
-                  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Brain className="w-8 h-8 text-green-600 dark:text-green-400" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Today's Micro-Actions */}
+          <Card className="bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+                Today's Micro-Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 bg-green-500 rounded-full"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Drink 1 glass of water</p>
+                    <p className="text-sm text-gray-600">Health • 2 min</p>
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">Neuroplasticity</h3>
-                  <p className="text-muted-foreground">
-                    Small, repeated actions rewire your brain more effectively than sporadic big efforts.
-                  </p>
-                </article>
-
-                <article className="text-center">
-                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <TrendingUp className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Compound Effect</h3>
-                  <p className="text-muted-foreground">
-                    1% daily improvements compound into 37x better results over a year.
-                  </p>
-                </article>
-
-                <article className="text-center">
-                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Lower Resistance</h3>
-                  <p className="text-muted-foreground">
-                    Tiny actions bypass mental resistance and make starting effortless.
-                  </p>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* What MindReMinder Is NOT */}
-          <section className="py-16 px-4 bg-muted/30" aria-labelledby="what-not-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-12">
-                <h2 id="what-not-heading" className="text-3xl font-bold mb-4">
-                  This Isn't Your Typical Reminder App
-                </h2>
-                <p className="text-lg text-muted-foreground">
-                  We're not about managing tasks. We're about transforming lives through consistent micro-actions.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                <article className="border-2 border-destructive/20 rounded-lg p-6 text-center">
-                  <X className="w-12 h-12 text-destructive mx-auto mb-4" aria-hidden="true" />
-                  <h3 className="font-semibold mb-2">Not a To-Do List</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We don't manage your tasks. We help you build habits that create lasting change.
-                  </p>
-                </article>
-
-                <article className="border-2 border-destructive/20 rounded-lg p-6 text-center">
-                  <X className="w-12 h-12 text-destructive mx-auto mb-4" aria-hidden="true" />
-                  <h3 className="font-semibold mb-2">Not a Calendar App</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We don't schedule meetings. We remind you to take tiny steps toward your goals.
-                  </p>
-                </article>
-
-                <article className="border-2 border-destructive/20 rounded-lg p-6 text-center">
-                  <X className="w-12 h-12 text-destructive mx-auto mb-4" aria-hidden="true" />
-                  <h3 className="font-semibold mb-2">Not Quick Fixes</h3>
-                  <p className="text-sm text-muted-foreground">
-                    We don't promise overnight success. We help you build sustainable, long-term change.
-                  </p>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* Features Section */}
-          <section className="py-20 px-4" aria-labelledby="features-heading">
-            <div className="container mx-auto max-w-6xl">
-              <div className="text-center mb-16">
-                <h2 id="features-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                  Everything You Need to Build Better Habits
-                </h2>
-                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                  MindReMinder combines behavioral science with smart technology to make habit formation effortless and
-                  sustainable.
-                </p>
-              </div>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Repeat className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Micro-Action Reminders</h3>
-                  <p className="text-muted-foreground">
-                    Get reminded to take tiny, specific actions that build toward your bigger goals over time.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Target className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Habit Stacking</h3>
-                  <p className="text-muted-foreground">
-                    Link new micro-habits to existing routines for automatic behavior change.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <MapPin className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Context-Based Triggers</h3>
-                  <p className="text-muted-foreground">
-                    Get reminded based on location, time, or other environmental cues for maximum effectiveness.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Brain className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Motivational Insights</h3>
-                  <p className="text-muted-foreground">
-                    Receive AI-generated quotes and insights tailored to your specific goals and challenges.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <Users className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Accountability Partners</h3>
-                  <p className="text-muted-foreground">
-                    Share your micro-actions with friends for support and increased commitment.
-                  </p>
-                </article>
-
-                <article className="border-2 hover:border-primary/50 transition-colors rounded-lg p-6">
-                  <TrendingUp className="w-12 h-12 text-primary mb-4" aria-hidden="true" />
-                  <h3 className="text-xl font-semibold mb-2">Progress Tracking</h3>
-                  <p className="text-muted-foreground">
-                    Visualize your consistency and see how small actions compound into big results.
-                  </p>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* How It Works */}
-          <section className="py-20 px-4 bg-muted/30" aria-labelledby="how-it-works-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-16">
-                <h2 id="how-it-works-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                  The MindReMinder Method
-                </h2>
-                <p className="text-lg text-muted-foreground">A proven 3-step process for lasting habit formation</p>
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-8">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary-foreground">1</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Break It Down</h3>
-                  <p className="text-muted-foreground">
-                    Transform big goals into tiny, specific micro-actions that take 2 minutes or less.
-                  </p>
                 </div>
-
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary-foreground">2</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Get Reminded</h3>
-                  <p className="text-muted-foreground">
-                    Receive smart, contextual reminders that prompt you to take action at the perfect moment.
-                  </p>
-                </div>
-
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl font-bold text-primary-foreground">3</span>
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">Build Momentum</h3>
-                  <p className="text-muted-foreground">
-                    Watch as consistent micro-actions compound into significant life changes over time.
-                  </p>
-                </div>
+                <span className="text-green-600 font-medium">✓ Done</span>
               </div>
-            </div>
-          </section>
 
-          {/* Mobile App Section */}
-          <section className="py-20 px-4" aria-labelledby="mobile-app-heading">
-            <div className="container mx-auto max-w-4xl text-center">
-              <h2 id="mobile-app-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                Take Your Habits Everywhere
-              </h2>
-              <p className="text-lg text-muted-foreground mb-12 max-w-2xl mx-auto">
-                Get native mobile apps for iOS and Android to build habits on the go with push notifications and offline
-                access.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <Button size="lg" variant="outline" className="text-lg px-8" disabled>
-                  <Apple className="mr-2 h-6 w-6" />
-                  Download for iOS
-                  <Badge variant="secondary" className="ml-2">
-                    Coming Soon
-                  </Badge>
-                </Button>
-
-                <Button size="lg" variant="outline" className="text-lg px-8" disabled>
-                  <Play className="mr-2 h-6 w-6" />
-                  Get on Android
-                  <Badge variant="secondary" className="ml-2">
-                    Coming Soon
-                  </Badge>
+              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">Read 1 page</p>
+                    <p className="text-sm text-gray-600">Learning • 3 min</p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline">
+                  Do Now
                 </Button>
               </div>
 
-              <p className="text-sm text-muted-foreground mt-6">
-                Join our waitlist to be notified when the mobile apps launch
-              </p>
-            </div>
-          </section>
-
-          {/* Testimonials */}
-          <section className="py-20 px-4 bg-muted/30" aria-labelledby="testimonials-heading">
-            <div className="container mx-auto max-w-4xl">
-              <div className="text-center mb-16">
-                <h2 id="testimonials-heading" className="text-3xl md:text-4xl font-bold mb-4">
-                  Real People, Real Results
-                </h2>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 bg-gray-400 rounded-full"></div>
+                  <div>
+                    <p className="font-medium text-gray-900">5 push-ups</p>
+                    <p className="text-sm text-gray-600">Fitness • 1 min</p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline">
+                  Do Now
+                </Button>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="grid md:grid-cols-2 gap-8">
-                <article className="rounded-lg p-6 border">
-                  <div className="flex mb-4" aria-label="5 star rating">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
-                    ))}
-                  </div>
-                  <blockquote className="text-muted-foreground mb-4">
-                    "I tried to meditate for years but always gave up. MindReMinder helped me start with just 30 seconds
-                    a day. Now I meditate for 20 minutes daily and feel amazing!"
-                  </blockquote>
-                  <footer>
-                    <div className="font-semibold">Sarah Johnson</div>
-                    <div className="text-sm text-muted-foreground">Marketing Manager</div>
-                  </footer>
-                </article>
-
-                <article className="rounded-lg p-6 border">
-                  <div className="flex mb-4" aria-label="5 star rating">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" aria-hidden="true" />
-                    ))}
-                  </div>
-                  <blockquote className="text-muted-foreground mb-4">
-                    "The micro-action approach is genius. Instead of 'write a book,' I get reminded to 'write one
-                    sentence.' I've written 3 chapters in 2 months!"
-                  </blockquote>
-                  <footer>
-                    <div className="font-semibold">Michael Chen</div>
-                    <div className="text-sm text-muted-foreground">Aspiring Author</div>
-                  </footer>
-                </article>
-              </div>
-            </div>
-          </section>
-
-          {/* CTA Section */}
-          <section className="py-20 px-4 bg-primary text-primary-foreground">
-            <div className="container mx-auto text-center max-w-3xl">
-              <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Build Life-Changing Habits?</h2>
-              <p className="text-xl mb-8 opacity-90">
-                Join thousands of people who've discovered the power of micro-actions to create lasting change in their
-                lives.
-              </p>
-
-              <Button
-                size="lg"
-                variant="secondary"
-                onClick={() => {
-                  Analytics.trackGetStartedClick("cta")
-                  handleGetStarted()
-                }}
-                className="text-lg px-8"
-              >
-                Start Your Transformation Today
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
-
-              <p className="text-sm mt-4 opacity-75">Free forever. No credit card required. Cancel anytime.</p>
-            </div>
-          </section>
-
-          {/* Footer */}
-          <footer className="py-12 px-4 border-t bg-muted/30">
-            <div className="container mx-auto max-w-6xl">
-              <div className="grid md:grid-cols-4 gap-8">
-                <div>
-                  <div className="flex items-center space-x-2 mb-4">
-                    <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                      <span className="text-primary-foreground font-bold text-xs">MR</span>
-                    </div>
-                    <span className="font-bold text-primary">MindReMinder</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Build life-changing habits through the power of micro-actions and consistent reminders.
-                  </p>
+          {/* Progress & Motivation */}
+          <Card className="bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
+                Your Progress
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Weekly Goal</span>
+                  <span className="text-sm text-gray-600">35/49 actions</span>
                 </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4">Product</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>
-                      <a href="#features" className="hover:text-foreground">
-                        Features
-                      </a>
-                    </li>
-                    <li>
-                      <a href="#mobile-app" className="hover:text-foreground">
-                        Mobile App
-                      </a>
-                    </li>
-                    <li>
-                      <a href="/dashboard" className="hover:text-foreground">
-                        Web App
-                      </a>
-                    </li>
-                    <li>
-                      <Link href="/resources" className="hover:text-foreground">
-                        Resources
-                      </Link>
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4">Learn</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>
-                      <Link href="/resources" className="hover:text-foreground">
-                        Habit Science
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/resources#guides" className="hover:text-foreground">
-                        How-to Guides
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/resources#examples" className="hover:text-foreground">
-                        Micro-Action Examples
-                      </Link>
-                    </li>
-                    <li>
-                      <a href="/blog" className="hover:text-foreground">
-                        Blog
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4">Support</h4>
-                  <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li>
-                      <Link href="/help" className="hover:text-foreground">
-                        Help Center
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/contact" className="hover:text-foreground">
-                        Contact
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/privacy" className="hover:text-foreground">
-                        Privacy Policy
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/terms" className="hover:text-foreground">
-                        Terms of Service
-                      </Link>
-                    </li>
-                  </ul>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-green-500 h-2 rounded-full" style={{ width: "71%" }}></div>
                 </div>
               </div>
 
-              <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-                <p>
-                  &copy; 2025 MindReMinder. All rights reserved. Built with ❤️ for lasting change through micro-actions.
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2">💡 Today's Insight</h3>
+                <p className="text-blue-800 text-sm">
+                  "Small actions compound into extraordinary results. You're 71% closer to your weekly goal!"
                 </p>
               </div>
-            </div>
-          </footer>
-        </main>
-        <CookieConsent />
+
+              <div className="text-center">
+                <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  <Quote className="h-4 w-4 mr-2" />
+                  Get Daily Motivation
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </>
-  )
-}
-
-export default function HomePage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomePageContent />
-    </Suspense>
+    </div>
   )
 }
