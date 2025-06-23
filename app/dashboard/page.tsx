@@ -20,17 +20,18 @@ import { Plus, Bell, Quote, Calendar } from "lucide-react"
 import { useAnalytics } from "@/hooks/use-analytics"
 import { Analytics } from "@/lib/analytics"
 import { NotificationService } from "@/lib/notifications"
-import { UserPreferencesService } from "@/lib/user-preferences"
 import { SupabaseAuthService } from "@/lib/auth-supabase"
 import type { AuthUser as User, Reminder } from "@/lib/auth-supabase"
 import { SupabaseReminderService } from "@/lib/reminders-supabase"
 import type { FavoriteQuote } from "@/lib/quotes-supabase"
 import { SupabaseQuoteService } from "@/lib/quotes-supabase"
 import { FriendsDashboard } from "@/components/friends/friends-dashboard"
+import { AnalyticsDashboard } from "@/components/analytics/analytics-dashboard"
 
 export default function Dashboard() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("dashboard")
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [reminders, setReminders] = useState<Reminder[]>([])
@@ -45,35 +46,46 @@ export default function Dashboard() {
   const [favoriteQuotes, setFavoriteQuotes] = useState<FavoriteQuote[]>([])
   const router = useRouter()
   const analytics = useAnalytics()
-  const notificationService = NotificationService.getInstance()
-  const userPreferencesService = UserPreferencesService.getInstance()
 
   useEffect(() => {
     const loadUser = async () => {
-      const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
-      if (!currentUser) {
-        router.push("/")
-        return
+      try {
+        console.log("Loading user...")
+        const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
+
+        if (!currentUser) {
+          console.log("No user found, redirecting to home")
+          router.push("/")
+          return
+        }
+
+        console.log("User loaded:", currentUser)
+        setUser(currentUser)
+
+        // Load user data
+        await Promise.all([loadReminders(currentUser.id), loadFavoriteQuotes(currentUser.id)])
+
+        setProfileData({
+          firstName: currentUser.firstName,
+          lastName: currentUser.lastName,
+          email: currentUser.email,
+          profileImage: currentUser.profileImage || "",
+        })
+
+        // Initialize notifications
+        try {
+          const notificationService = NotificationService.getInstance()
+          await notificationService.initialize()
+        } catch (notifError) {
+          console.warn("Failed to initialize notifications:", notifError)
+        }
+
+        setLoading(false)
+      } catch (err) {
+        console.error("Error loading user:", err)
+        setError(err instanceof Error ? err.message : "Failed to load user data")
+        setLoading(false)
       }
-
-      setUser(currentUser)
-      loadReminders(currentUser.id)
-      setProfileData({
-        firstName: currentUser.firstName,
-        lastName: currentUser.lastName,
-        email: currentUser.email,
-        profileImage: currentUser.profileImage || "",
-      })
-      setLoading(false)
-
-      // Load favorite quotes
-      if (currentUser) {
-        const quotes = await SupabaseQuoteService.getInstance().getFavoriteQuotes(currentUser.id)
-        setFavoriteQuotes(quotes.slice(0, 3)) // Show only top 3
-      }
-
-      // Initialize notifications
-      await notificationService.initialize()
     }
 
     loadUser()
@@ -81,18 +93,40 @@ export default function Dashboard() {
 
   const loadReminders = async (userId: string) => {
     try {
+      console.log("Loading reminders for user:", userId)
       const userReminders = await SupabaseReminderService.getInstance().getReminders(userId)
+      console.log("Reminders loaded:", userReminders.length)
       setReminders(userReminders)
     } catch (error) {
       console.error("Error loading reminders:", error)
+      // Don't throw, just log the error
+    }
+  }
+
+  const loadFavoriteQuotes = async (userId: string) => {
+    try {
+      console.log("Loading favorite quotes for user:", userId)
+      const quotes = await SupabaseQuoteService.getInstance().getFavoriteQuotes(userId)
+      console.log("Favorite quotes loaded:", quotes.length)
+      setFavoriteQuotes(quotes.slice(0, 3)) // Show only top 3
+    } catch (error) {
+      console.error("Error loading favorite quotes:", error)
+      // Don't throw, just log the error
     }
   }
 
   const handleLogout = async () => {
-    // Cancel all scheduled notifications on logout
-    notificationService.cancelAllScheduledNotifications()
-    await SupabaseAuthService.getInstance().signOut()
-    router.push("/")
+    try {
+      // Cancel all scheduled notifications on logout
+      const notificationService = NotificationService.getInstance()
+      notificationService.cancelAllScheduledNotifications()
+      await SupabaseAuthService.getInstance().signOut()
+      router.push("/")
+    } catch (error) {
+      console.error("Error during logout:", error)
+      // Force redirect even if logout fails
+      router.push("/")
+    }
   }
 
   const handleSaveReminder = async (reminderData: Omit<Reminder, "id" | "userId" | "createdAt" | "updatedAt">) => {
@@ -110,6 +144,7 @@ export default function Dashboard() {
         Analytics.trackReminderEdited()
 
         // Cancel old notification and schedule new one if needed
+        const notificationService = NotificationService.getInstance()
         notificationService.cancelScheduledNotification(`reminder-${editingReminder.id}`)
       } else {
         savedReminder = await SupabaseReminderService.getInstance().createReminder(user.id, reminderData)
@@ -119,6 +154,7 @@ export default function Dashboard() {
 
       // Schedule notification if reminder has a scheduled time and is active
       if (savedReminder.scheduledTime && savedReminder.isActive) {
+        const notificationService = NotificationService.getInstance()
         await notificationService.scheduleReminderNotification({
           id: savedReminder.id,
           title: savedReminder.title,
@@ -146,6 +182,7 @@ export default function Dashboard() {
       await SupabaseReminderService.getInstance().deleteReminder(user.id, reminderId)
 
       // Cancel scheduled notification
+      const notificationService = NotificationService.getInstance()
       notificationService.cancelScheduledNotification(`reminder-${reminderId}`)
 
       Analytics.trackReminderDeleted()
@@ -162,6 +199,7 @@ export default function Dashboard() {
       if (reminder) {
         const updatedReminder = await SupabaseReminderService.getInstance().toggleReminder(user.id, reminderId)
 
+        const notificationService = NotificationService.getInstance()
         if (updatedReminder.isActive && updatedReminder.scheduledTime) {
           // Schedule notification for activated reminder
           await notificationService.scheduleReminderNotification({
@@ -227,21 +265,63 @@ export default function Dashboard() {
     }
   }
 
+  // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary-foreground font-bold text-sm">MR</span>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto animate-pulse">
+            <span className="text-primary-foreground font-bold text-lg">MR</span>
           </div>
-          <p>Loading...</p>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Loading MindReMinder...</p>
+            <p className="text-sm text-muted-foreground">Setting up your dashboard</p>
+          </div>
+          <div className="w-32 h-2 bg-muted rounded-full mx-auto overflow-hidden">
+            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: "60%" }}></div>
+          </div>
         </div>
       </div>
     )
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 max-w-md">
+          <div className="w-12 h-12 bg-destructive rounded-lg flex items-center justify-center mx-auto">
+            <span className="text-destructive-foreground font-bold text-lg">!</span>
+          </div>
+          <div className="space-y-2">
+            <p className="text-lg font-medium">Something went wrong</p>
+            <p className="text-sm text-muted-foreground">{error}</p>
+          </div>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => window.location.reload()} variant="outline">
+              Try Again
+            </Button>
+            <Button onClick={() => router.push("/")} variant="default">
+              Go Home
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // No user state (should redirect)
   if (!user) {
-    return null // Will redirect in useEffect
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto">
+            <span className="text-muted-foreground font-bold text-lg">?</span>
+          </div>
+          <p className="text-lg font-medium">Redirecting...</p>
+        </div>
+      </div>
+    )
   }
 
   const activeReminders = reminders.filter((r) => r.isActive)
@@ -259,17 +339,9 @@ export default function Dashboard() {
       />
 
       <div className="flex">
-        <Sidebar
-          activeTab={activeTab}
-          onTabChange={(tab) => {
-            Analytics.trackTabChange(tab)
-            setActiveTab(tab)
-          }}
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+        <Sidebar />
 
-        <main className="flex-1 p-6 md:ml-0">
+        <main className="flex-1 p-6 md:ml-64">
           {activeTab === "dashboard" && (
             <div className="space-y-6">
               <div>
@@ -355,7 +427,7 @@ export default function Dashboard() {
                             <h4 className="font-medium">{reminder.title}</h4>
                             {reminder.scheduledTime && (
                               <p className="text-sm text-muted-foreground">
-                                {userPreferencesService.formatDateTime(new Date(reminder.scheduledTime))}
+                                {new Date(reminder.scheduledTime).toLocaleDateString()}
                               </p>
                             )}
                           </div>
@@ -423,6 +495,8 @@ export default function Dashboard() {
           )}
 
           {activeTab === "friends" && <FriendsDashboard user={user} />}
+
+          {activeTab === "analytics" && <AnalyticsDashboard userId={user.id} />}
 
           {activeTab === "settings" && (
             <div className="space-y-6">
