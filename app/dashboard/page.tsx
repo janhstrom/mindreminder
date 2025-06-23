@@ -1,307 +1,119 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Header } from "@/components/dashboard/header"
-import { Sidebar } from "@/components/dashboard/sidebar"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loader2, Plus, Calendar, Users, BarChart3, Bell } from "lucide-react"
 import { ReminderForm } from "@/components/reminders/reminder-form"
 import { ReminderCard } from "@/components/reminders/reminder-card"
 import { QuoteGenerator } from "@/components/quotes/quote-generator"
-import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
-import { UserPreferencesCard } from "@/components/settings/user-preferences"
-import { ProfileImageUpload } from "@/components/settings/profile-image-upload"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Plus, Bell, Quote, Calendar } from "lucide-react"
-import { useAnalytics } from "@/hooks/use-analytics"
-import { Analytics } from "@/lib/analytics"
-import { NotificationService } from "@/lib/notifications"
-import { SupabaseAuthService } from "@/lib/auth-supabase"
-import type { AuthUser as User, Reminder } from "@/lib/auth-supabase"
-import { SupabaseReminderService } from "@/lib/reminders-supabase"
-import type { FavoriteQuote } from "@/lib/quotes-supabase"
-import { SupabaseQuoteService } from "@/lib/quotes-supabase"
 import { FriendsDashboard } from "@/components/friends/friends-dashboard"
 import { AnalyticsDashboard } from "@/components/analytics/analytics-dashboard"
+import { NotificationSettings } from "@/components/notifications/notification-settings"
+import { UserPreferences } from "@/components/settings/user-preferences"
+import { getUser } from "@/lib/auth-supabase"
+import { getReminders } from "@/lib/reminders-supabase"
+import { trackPageView, trackUserAction } from "@/lib/analytics-service"
+import type { User, Reminder } from "@/types"
 
-export default function Dashboard() {
+export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
+  const [reminders, setReminders] = useState<Reminder[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState("dashboard")
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [reminders, setReminders] = useState<Reminder[]>([])
+  const [activeTab, setActiveTab] = useState("overview")
   const [showReminderForm, setShowReminderForm] = useState(false)
-  const [editingReminder, setEditingReminder] = useState<Reminder | undefined>()
-  const [profileData, setProfileData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    profileImage: "",
-  })
-  const [favoriteQuotes, setFavoriteQuotes] = useState<FavoriteQuote[]>([])
-  const router = useRouter()
-  const analytics = useAnalytics()
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        console.log("Loading user...")
-        const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
+    loadDashboardData()
+  }, [])
 
-        if (!currentUser) {
-          console.log("No user found, redirecting to home")
-          router.push("/")
-          return
-        }
-
-        console.log("User loaded:", currentUser)
-        setUser(currentUser)
-
-        // Load user data
-        await Promise.all([loadReminders(currentUser.id), loadFavoriteQuotes(currentUser.id)])
-
-        setProfileData({
-          firstName: currentUser.firstName,
-          lastName: currentUser.lastName,
-          email: currentUser.email,
-          profileImage: currentUser.profileImage || "",
-        })
-
-        // Initialize notifications
-        try {
-          const notificationService = NotificationService.getInstance()
-          await notificationService.initialize()
-        } catch (notifError) {
-          console.warn("Failed to initialize notifications:", notifError)
-        }
-
-        setLoading(false)
-      } catch (err) {
-        console.error("Error loading user:", err)
-        setError(err instanceof Error ? err.message : "Failed to load user data")
-        setLoading(false)
-      }
-    }
-
-    loadUser()
-  }, [router])
-
-  const loadReminders = async (userId: string) => {
+  const loadDashboardData = async () => {
     try {
-      console.log("Loading reminders for user:", userId)
-      const userReminders = await SupabaseReminderService.getInstance().getReminders(userId)
-      console.log("Reminders loaded:", userReminders.length)
-      setReminders(userReminders)
-    } catch (error) {
-      console.error("Error loading reminders:", error)
-      // Don't throw, just log the error
-    }
-  }
+      console.log("Loading dashboard data...")
+      setLoading(true)
+      setError(null)
 
-  const loadFavoriteQuotes = async (userId: string) => {
-    try {
-      console.log("Loading favorite quotes for user:", userId)
-      const quotes = await SupabaseQuoteService.getInstance().getFavoriteQuotes(userId)
-      console.log("Favorite quotes loaded:", quotes.length)
-      setFavoriteQuotes(quotes.slice(0, 3)) // Show only top 3
-    } catch (error) {
-      console.error("Error loading favorite quotes:", error)
-      // Don't throw, just log the error
-    }
-  }
+      // Get current user
+      console.log("Getting user...")
+      const currentUser = await getUser()
+      console.log("User result:", currentUser)
 
-  const handleLogout = async () => {
-    try {
-      // Cancel all scheduled notifications on logout
-      const notificationService = NotificationService.getInstance()
-      notificationService.cancelAllScheduledNotifications()
-      await SupabaseAuthService.getInstance().signOut()
-      router.push("/")
-    } catch (error) {
-      console.error("Error during logout:", error)
-      // Force redirect even if logout fails
-      router.push("/")
-    }
-  }
-
-  const handleSaveReminder = async (reminderData: Omit<Reminder, "id" | "userId" | "createdAt" | "updatedAt">) => {
-    if (!user) return
-
-    try {
-      let savedReminder: Reminder
-
-      if (editingReminder) {
-        savedReminder = await SupabaseReminderService.getInstance().updateReminder(
-          user.id,
-          editingReminder.id,
-          reminderData,
-        )
-        Analytics.trackReminderEdited()
-
-        // Cancel old notification and schedule new one if needed
-        const notificationService = NotificationService.getInstance()
-        notificationService.cancelScheduledNotification(`reminder-${editingReminder.id}`)
-      } else {
-        savedReminder = await SupabaseReminderService.getInstance().createReminder(user.id, reminderData)
-        const reminderType = reminderData.image ? "image" : reminderData.location ? "location" : "text"
-        Analytics.trackReminderCreated(reminderType)
+      if (!currentUser) {
+        console.log("No user found, redirecting to login")
+        window.location.href = "/"
+        return
       }
 
-      // Schedule notification if reminder has a scheduled time and is active
-      if (savedReminder.scheduledTime && savedReminder.isActive) {
-        const notificationService = NotificationService.getInstance()
-        await notificationService.scheduleReminderNotification({
-          id: savedReminder.id,
-          title: savedReminder.title,
-          description: savedReminder.description,
-          scheduledTime: savedReminder.scheduledTime,
-        })
-      }
+      setUser(currentUser)
+      console.log("User set:", currentUser)
 
-      loadReminders(user.id)
-      setShowReminderForm(false)
-      setEditingReminder(undefined)
-    } catch (error) {
-      console.error("Error saving reminder:", error)
+      // Get user's reminders
+      console.log("Getting reminders for user:", currentUser.id)
+      const userReminders = await getReminders(currentUser.id)
+      console.log("Reminders result:", userReminders)
+
+      setReminders(userReminders || [])
+
+      // Track page view
+      trackPageView("/dashboard", currentUser.id)
+
+      console.log("Dashboard data loaded successfully")
+    } catch (err) {
+      console.error("Error loading dashboard:", err)
+      setError(err instanceof Error ? err.message : "Failed to load dashboard")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleEditReminder = (reminder: Reminder) => {
-    setEditingReminder(reminder)
-    setShowReminderForm(true)
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    trackUserAction("tab_change", { tab: value }, user?.id)
   }
 
-  const handleDeleteReminder = async (reminderId: string) => {
-    if (!user) return
-    try {
-      await SupabaseReminderService.getInstance().deleteReminder(user.id, reminderId)
-
-      // Cancel scheduled notification
-      const notificationService = NotificationService.getInstance()
-      notificationService.cancelScheduledNotification(`reminder-${reminderId}`)
-
-      Analytics.trackReminderDeleted()
-      loadReminders(user.id)
-    } catch (error) {
-      console.error("Error deleting reminder:", error)
-    }
+  const handleReminderAdded = () => {
+    setShowReminderForm(false)
+    loadDashboardData() // Reload to show new reminder
+    trackUserAction("reminder_added", {}, user?.id)
   }
 
-  const handleToggleReminder = async (reminderId: string) => {
-    if (!user) return
-    try {
-      const reminder = reminders.find((r) => r.id === reminderId)
-      if (reminder) {
-        const updatedReminder = await SupabaseReminderService.getInstance().toggleReminder(user.id, reminderId)
-
-        const notificationService = NotificationService.getInstance()
-        if (updatedReminder.isActive && updatedReminder.scheduledTime) {
-          // Schedule notification for activated reminder
-          await notificationService.scheduleReminderNotification({
-            id: updatedReminder.id,
-            title: updatedReminder.title,
-            description: updatedReminder.description,
-            scheduledTime: updatedReminder.scheduledTime,
-          })
-        } else {
-          // Cancel notification for deactivated reminder
-          notificationService.cancelScheduledNotification(`reminder-${reminderId}`)
-        }
-
-        Analytics.trackReminderToggled(updatedReminder.isActive)
-        loadReminders(user.id)
-      }
-    } catch (error) {
-      console.error("Error toggling reminder:", error)
-    }
-  }
-
-  const handleShareReminder = (reminder: Reminder) => {
-    const shareText = `${reminder.title}${reminder.description ? "\n" + reminder.description : ""}`
-    if (navigator.share) {
-      navigator.share({
-        title: "Reminder from MindReMinder",
-        text: shareText,
-      })
-      Analytics.trackReminderShared("native_share")
-    } else {
-      navigator.clipboard.writeText(shareText)
-      Analytics.trackReminderShared("copy_link")
-    }
-  }
-
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!user) return
-
-    try {
-      const updatedUser = await SupabaseAuthService.getInstance().updateProfile({
-        firstName: profileData.firstName,
-        lastName: profileData.lastName,
-        profileImage: profileData.profileImage,
-      })
-      setUser(updatedUser)
-    } catch (error) {
-      console.error("Error updating profile:", error)
-    }
-  }
-
-  const handleProfileImageChange = async (imageUrl: string) => {
-    if (!user) return
-
-    try {
-      const updatedUser = await SupabaseAuthService.getInstance().updateProfile({
-        profileImage: imageUrl,
-      })
-      setUser(updatedUser)
-      setProfileData((prev) => ({ ...prev, profileImage: imageUrl }))
-    } catch (error) {
-      console.error("Error updating profile image:", error)
-    }
-  }
-
-  // Loading state
+  // Show loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto animate-pulse">
-            <span className="text-primary-foreground font-bold text-lg">MR</span>
-          </div>
+          <Loader2 className="h-8 w-8 animate-spin mx-auto" />
           <div className="space-y-2">
-            <p className="text-lg font-medium">Loading MindReMinder...</p>
-            <p className="text-sm text-muted-foreground">Setting up your dashboard</p>
-          </div>
-          <div className="w-32 h-2 bg-muted rounded-full mx-auto overflow-hidden">
-            <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: "60%" }}></div>
+            <p className="text-lg font-medium">Loading your dashboard...</p>
+            <p className="text-sm text-muted-foreground">This should only take a moment</p>
           </div>
         </div>
       </div>
     )
   }
 
-  // Error state
+  // Show error state
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center space-y-4 max-w-md">
-          <div className="w-12 h-12 bg-destructive rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-destructive-foreground font-bold text-lg">!</span>
+          <div className="text-red-500">
+            <svg className="h-12 w-12 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
           </div>
-          <div className="space-y-2">
-            <p className="text-lg font-medium">Something went wrong</p>
-            <p className="text-sm text-muted-foreground">{error}</p>
-          </div>
-          <div className="flex gap-2 justify-center">
-            <Button onClick={() => window.location.reload()} variant="outline">
-              Try Again
-            </Button>
-            <Button onClick={() => router.push("/")} variant="default">
+          <h2 className="text-xl font-semibold">Something went wrong</h2>
+          <p className="text-muted-foreground">{error}</p>
+          <div className="space-x-2">
+            <Button onClick={loadDashboardData}>Try Again</Button>
+            <Button variant="outline" onClick={() => (window.location.href = "/")}>
               Go Home
             </Button>
           </div>
@@ -310,265 +122,219 @@ export default function Dashboard() {
     )
   }
 
-  // No user state (should redirect)
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-muted-foreground font-bold text-lg">?</span>
-          </div>
-          <p className="text-lg font-medium">Redirecting...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const activeReminders = reminders.filter((r) => r.isActive)
-  const upcomingReminders = reminders
-    .filter((r) => r.isActive && r.scheduledTime && new Date(r.scheduledTime) > new Date())
-    .slice(0, 3)
-
+  // Show dashboard
   return (
     <div className="min-h-screen bg-background">
-      <Header
-        user={user}
-        onLogout={handleLogout}
-        onProfileClick={() => setActiveTab("settings")}
-        onMenuClick={() => setSidebarOpen(true)}
-      />
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Welcome back, {user?.name || "User"}!</h1>
+            <p className="text-muted-foreground">Here's what's happening with your reminders</p>
+          </div>
+          <Button onClick={() => setShowReminderForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Reminder
+          </Button>
+        </div>
 
-      <div className="flex">
-        <Sidebar />
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Reminders</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{reminders.length}</div>
+              <p className="text-xs text-muted-foreground">{reminders.filter((r) => r.isActive).length} active</p>
+            </CardContent>
+          </Card>
 
-        <main className="flex-1 p-6 md:ml-64">
-          {activeTab === "dashboard" && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold">Welcome back, {user.firstName}!</h2>
-                <p className="text-muted-foreground">Here's what's happening with your reminders</p>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">This Week</CardTitle>
+              <Bell className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {
+                  reminders.filter((r) => {
+                    const reminderDate = new Date(r.scheduledFor)
+                    const now = new Date()
+                    const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+                    return reminderDate >= now && reminderDate <= weekFromNow
+                  }).length
+                }
               </div>
+              <p className="text-xs text-muted-foreground">upcoming</p>
+            </CardContent>
+          </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Reminders</CardTitle>
-                    <Bell className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{reminders.length}</div>
-                  </CardContent>
-                </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{reminders.filter((r) => r.isCompleted).length}</div>
+              <p className="text-xs text-muted-foreground">this month</p>
+            </CardContent>
+          </Card>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Reminders</CardTitle>
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{activeReminders.length}</div>
-                  </CardContent>
-                </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Friends</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">0</div>
+              <p className="text-xs text-muted-foreground">connected</p>
+            </CardContent>
+          </Card>
+        </div>
 
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-                    <Quote className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{upcomingReminders.length}</div>
-                  </CardContent>
-                </Card>
-              </div>
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="reminders">Reminders</TabsTrigger>
+            <TabsTrigger value="quotes">Quotes</TabsTrigger>
+            <TabsTrigger value="friends">Friends</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
 
-              {favoriteQuotes.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span className="flex items-center gap-2">
-                        <Quote className="h-5 w-5" />
-                        Recent Favorite Quotes
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          Analytics.trackTabChange("quotes")
-                          setActiveTab("quotes")
-                        }}
-                      >
-                        View All
-                      </Button>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {favoriteQuotes.map((quote) => (
-                        <div key={quote.id} className="p-3 border rounded-lg bg-muted/30">
-                          <p className="text-sm italic mb-1">"{quote.content}"</p>
-                          <p className="text-xs text-muted-foreground">— {quote.author}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {upcomingReminders.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Upcoming Reminders</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {upcomingReminders.map((reminder) => (
-                        <div key={reminder.id} className="flex items-center space-x-4 p-3 border rounded-lg">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{reminder.title}</h4>
-                            {reminder.scheduledTime && (
-                              <p className="text-sm text-muted-foreground">
-                                {new Date(reminder.scheduledTime).toLocaleDateString()}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
-
-          {activeTab === "reminders" && (
-            <div className="space-y-6">
-              <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-bold">Reminders</h2>
-                <Button onClick={() => setShowReminderForm(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Reminder
-                </Button>
-              </div>
-
-              {showReminderForm ? (
-                <ReminderForm
-                  reminder={editingReminder}
-                  onSave={handleSaveReminder}
-                  onCancel={() => {
-                    setShowReminderForm(false)
-                    setEditingReminder(undefined)
-                  }}
-                />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {reminders.map((reminder) => (
-                    <ReminderCard
-                      key={reminder.id}
-                      reminder={reminder}
-                      onEdit={handleEditReminder}
-                      onDelete={handleDeleteReminder}
-                      onToggle={handleToggleReminder}
-                      onShare={handleShareReminder}
-                    />
-                  ))}
-                  {reminders.length === 0 && (
-                    <div className="col-span-full text-center py-12">
-                      <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No reminders yet</h3>
-                      <p className="text-muted-foreground mb-4">Create your first reminder to get started</p>
-                      <Button onClick={() => setShowReminderForm(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Reminder
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "quotes" && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold">AI Quotes</h2>
-              <QuoteGenerator user={user} />
-            </div>
-          )}
-
-          {activeTab === "friends" && <FriendsDashboard user={user} />}
-
-          {activeTab === "analytics" && <AnalyticsDashboard userId={user.id} />}
-
-          {activeTab === "settings" && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold">Settings</h2>
-
-              {/* Profile Image Upload */}
-              <ProfileImageUpload
-                currentImage={user.profileImage}
-                userName={`${user.firstName} ${user.lastName}`}
-                onImageChange={handleProfileImageChange}
-              />
-
-              {/* Profile Information */}
-              <Card className="max-w-2xl">
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent Reminders */}
+              <Card>
                 <CardHeader>
-                  <CardTitle>Profile Information</CardTitle>
+                  <CardTitle>Recent Reminders</CardTitle>
+                  <CardDescription>Your latest reminders and their status</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleUpdateProfile} className="space-y-4">
-                    <div className="flex items-center space-x-4 mb-6">
-                      <Avatar className="h-20 w-20">
-                        <AvatarImage src={user.profileImage || "/placeholder.svg"} alt={user.firstName} />
-                        <AvatarFallback className="text-lg">
-                          {user.firstName[0]}
-                          {user.lastName[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="text-lg font-medium">
-                          {user.firstName} {user.lastName}
-                        </h3>
-                        <p className="text-muted-foreground">{user.email}</p>
-                      </div>
+                <CardContent className="space-y-4">
+                  {reminders.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No reminders yet</p>
+                      <Button variant="outline" className="mt-2" onClick={() => setShowReminderForm(true)}>
+                        Create your first reminder
+                      </Button>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
-                        <Input
-                          id="firstName"
-                          value={profileData.firstName}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, firstName: e.target.value }))}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
-                        <Input
-                          id="lastName"
-                          value={profileData.lastName}
-                          onChange={(e) => setProfileData((prev) => ({ ...prev, lastName: e.target.value }))}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" value={profileData.email} disabled className="bg-muted" />
-                    </div>
-
-                    <Button type="submit">Update Profile</Button>
-                  </form>
+                  ) : (
+                    reminders
+                      .slice(0, 3)
+                      .map((reminder) => (
+                        <ReminderCard key={reminder.id} reminder={reminder} onUpdate={loadDashboardData} />
+                      ))
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Date & Time Preferences */}
-              <UserPreferencesCard />
-
-              {/* Notification Settings */}
-              <NotificationSettingsCard />
+              {/* Quote of the Day */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daily Inspiration</CardTitle>
+                  <CardDescription>Get motivated with a daily quote</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <QuoteGenerator />
+                </CardContent>
+              </Card>
             </div>
-          )}
-        </main>
+          </TabsContent>
+
+          <TabsContent value="reminders" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">Your Reminders</h2>
+                <p className="text-muted-foreground">Manage all your reminders in one place</p>
+              </div>
+              <Button onClick={() => setShowReminderForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Reminder
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {reminders.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <Calendar className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No reminders yet</h3>
+                  <p className="text-muted-foreground mb-4">Create your first reminder to get started</p>
+                  <Button onClick={() => setShowReminderForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Reminder
+                  </Button>
+                </div>
+              ) : (
+                reminders.map((reminder) => (
+                  <ReminderCard key={reminder.id} reminder={reminder} onUpdate={loadDashboardData} />
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="quotes">
+            <Card>
+              <CardHeader>
+                <CardTitle>Quote Generator</CardTitle>
+                <CardDescription>Generate inspiring quotes to motivate yourself</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <QuoteGenerator />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="friends">
+            <FriendsDashboard />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AnalyticsDashboard />
+          </TabsContent>
+
+          <TabsContent value="settings" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Notification Settings</CardTitle>
+                  <CardDescription>Configure how you receive reminders</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <NotificationSettings />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>User Preferences</CardTitle>
+                  <CardDescription>Customize your experience</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <UserPreferences />
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        {/* Reminder Form Modal */}
+        {showReminderForm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-background rounded-lg p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Create New Reminder</h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowReminderForm(false)}>
+                  ✕
+                </Button>
+              </div>
+              <ReminderForm onSuccess={handleReminderAdded} onCancel={() => setShowReminderForm(false)} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
