@@ -12,6 +12,7 @@ import { Sidebar } from "@/components/dashboard/sidebar"
 import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
+import { NotificationSettings } from "@/components/settings/notification-settings"
 
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -150,10 +151,10 @@ export default function SettingsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1 space-y-8">
                 {/* <ProfileImageUpload
-                  userName={`${settings.firstName} ${settings.lastName}`}
-                  currentImage={user?.profileImage}
-                  onImageChange={(imageUrl) => handleSettingsChange({ profileImage: imageUrl })}
-                /> */}
+                userName={`${settings.firstName} ${settings.lastName}`}
+                currentImage={user?.profileImage}
+                onImageChange={(imageUrl) => handleSettingsChange({ profileImage: imageUrl })}
+              /> */}
                 <p className="text-sm text-muted-foreground p-4 border rounded-md">
                   Profile image upload temporarily disabled for debugging.
                 </p>
@@ -161,7 +162,7 @@ export default function SettingsPage() {
               <div className="lg:col-span-2 space-y-8">
                 <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
                 {/* <UserPreferencesCard /> */}
-                {/* <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} /> */}
+                <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} />
               </div>
             </div>
           </div>
