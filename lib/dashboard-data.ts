@@ -1,6 +1,7 @@
 "use client"
 
 import { supabase } from "./supabase"
+import { DEMO_USER_ID } from "./auth-fallback"
 
 export interface DashboardStats {
   activeReminders: number
@@ -31,51 +32,17 @@ export interface SimpleMicroAction {
 // Simple user management for demo purposes
 export class UserService {
   static async ensureDemoUser(): Promise<string> {
-    // Use a proper UUID format for demo user
-    const demoUserId = "550e8400-e29b-41d4-a716-446655440000"
-
-    try {
-      // Check if demo user exists in profiles table
-      const { data: existingUser, error: checkError } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", demoUserId)
-        .single()
-
-      if (checkError && checkError.code !== "PGRST116") {
-        // PGRST116 is "not found" error, which is expected
-        console.error("Error checking for demo user:", checkError)
-      }
-
-      if (!existingUser) {
-        // Create demo user profile
-        const { error: insertError } = await supabase.from("profiles").insert({
-          id: demoUserId,
-          email: "demo@mindreminder.com",
-          first_name: "Demo",
-          last_name: "User",
-        })
-
-        if (insertError) {
-          console.error("Error creating demo user:", insertError)
-          // Continue anyway, maybe the user exists but we couldn't find it
-        } else {
-          console.log("✅ Demo user created successfully")
-        }
-      }
-
-      return demoUserId
-    } catch (error) {
-      console.error("Error in ensureDemoUser:", error)
-      return demoUserId // Return the ID anyway
-    }
+    // Just return the hardcoded demo user ID
+    // RLS is disabled so this should work regardless of whether the user exists in profiles
+    console.log("✅ Using demo user ID:", DEMO_USER_ID)
+    return DEMO_USER_ID
   }
 }
 
 export class DashboardDataService {
   static async getStats(userId?: string): Promise<DashboardStats> {
     try {
-      const actualUserId = userId || (await UserService.ensureDemoUser())
+      const actualUserId = userId || DEMO_USER_ID
 
       // Get reminders count
       const { count: remindersCount, error: remindersError } = await supabase
@@ -144,7 +111,7 @@ export class DashboardDataService {
 
   static async getReminders(userId?: string): Promise<SimpleReminder[]> {
     try {
-      const actualUserId = userId || (await UserService.ensureDemoUser())
+      const actualUserId = userId || DEMO_USER_ID
 
       const { data, error } = await supabase
         .from("reminders")
@@ -175,7 +142,7 @@ export class DashboardDataService {
 
   static async getMicroActions(userId?: string): Promise<SimpleMicroAction[]> {
     try {
-      const actualUserId = userId || (await UserService.ensureDemoUser())
+      const actualUserId = userId || DEMO_USER_ID
 
       const { data, error } = await supabase
         .from("micro_actions")
@@ -229,18 +196,8 @@ export class DashboardDataService {
     try {
       console.log("🔄 Creating reminder with data:", reminderData)
 
-      const userId = await UserService.ensureDemoUser()
+      const userId = DEMO_USER_ID
       console.log("👤 Using user ID:", userId)
-
-      // Test database connection first
-      const { data: testData, error: testError } = await supabase.from("reminders").select("count").limit(1)
-
-      if (testError) {
-        console.error("❌ Database connection test failed:", testError)
-        throw new Error(`Database connection failed: ${testError.message}`)
-      }
-
-      console.log("✅ Database connection test passed")
 
       const insertData = {
         user_id: userId,
@@ -258,12 +215,6 @@ export class DashboardDataService {
 
       if (error) {
         console.error("❌ Supabase insert error:", error)
-        console.error("Error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        })
         throw new Error(`Failed to create reminder: ${error.message}`)
       }
 
@@ -301,18 +252,8 @@ export class DashboardDataService {
     try {
       console.log("🔄 Creating micro-action with data:", microActionData)
 
-      const userId = await UserService.ensureDemoUser()
+      const userId = DEMO_USER_ID
       console.log("👤 Using user ID:", userId)
-
-      // Test database connection first
-      const { data: testData, error: testError } = await supabase.from("micro_actions").select("count").limit(1)
-
-      if (testError) {
-        console.error("❌ Database connection test failed:", testError)
-        throw new Error(`Database connection failed: ${testError.message}`)
-      }
-
-      console.log("✅ Database connection test passed")
 
       const insertData = {
         user_id: userId,
@@ -332,12 +273,6 @@ export class DashboardDataService {
 
       if (error) {
         console.error("❌ Supabase insert error:", error)
-        console.error("Error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        })
         throw new Error(`Failed to create micro-action: ${error.message}`)
       }
 
