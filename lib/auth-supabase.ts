@@ -1,215 +1,188 @@
 "use client"
 
-import { supabase } from "./supabase"
-import type { User } from "@supabase/supabase-js"
-import type { Database } from "./supabase"
+import type React from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { authService, type AuthUser } from "@/lib/auth-supabase" // Ensure this path is correct
+import { useRouter, usePathname } from "next/navigation"
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"]
-
-export interface AuthUser {
-  id: string
-  email: string
-  firstName: string
-  lastName: string
-  profileImage?: string
-  createdAt: Date
-  emailConfirmed?: boolean
+interface AuthContextType {
+  user: AuthUser | null
+  loading: boolean // General loading for initial auth state detection
+  operationLoading: boolean // Specific loading for signIn, signUp, signOut operations
+  error: Error | null
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
+  signOut: () => Promise<void>
+  updateProfile: typeof authService.updateProfile
 }
 
-export class SupabaseAuthService {
-  private static instance: SupabaseAuthService
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-  static getInstance(): SupabaseAuthService {
-    if (!SupabaseAuthService.instance) {
-      SupabaseAuthService.instance = new SupabaseAuthService()
-    }
-    return SupabaseAuthService.instance
-  }
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [operationLoading, setOperationLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const router = useRouter()
+  const pathname = usePathname()
 
-  async signUp(email: string, password: string, firstName: string, lastName: string): Promise<AuthUser> {
-    console.log("Attempting to sign up user:", email)
-
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-        },
-      },
-    })
-
-    console.log("Supabase signup response:", { data, error })
-
-    if (error) {
-      console.error("Signup error:", error)
-      throw error
-    }
-    if (!data.user) {
-      console.error("No user returned from signup")
-      throw new Error("No user returned")
-    }
-
-    console.log("User created successfully:", data.user)
-
-    // Check if email confirmation is required
-    const emailConfirmed = data.user.email_confirmed_at !== null
-
-    // The profile is created automatically via trigger
-    return this.mapUserToAuthUser(data.user, { first_name: firstName, last_name: lastName }, emailConfirmed)
-  }
-
-  async signIn(email: string, password: string): Promise<AuthUser> {
-    console.log("Attempting to sign in user:", email)
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    console.log("Supabase signin response:", { data, error })
-
-    if (error) {
-      console.error("Signin error:", error)
-      throw error
-    }
-    if (!data.user) {
-      console.error("No user returned from signin")
-      throw new Error("No user returned")
-    }
-
-    console.log("User signed in successfully:", data.user)
-
-    const profile = await this.getProfile(data.user.id)
-    return this.mapUserToAuthUser(data.user, profile, true)
-  }
-
-  async signInWithGoogle(): Promise<void> {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/dashboard`,
-      },
-    })
-
-    if (error) throw error
-  }
-
-  async signOut(): Promise<void> {
-    console.log("Signing out user")
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      console.error("Signout error:", error)
-      throw error
-    }
-    console.log("User signed out successfully")
-  }
-
-  async getCurrentUser(): Promise<AuthUser | null> {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        console.log("No current user")
-        return null
-      }
-
-      console.log("Current user found:", user.email)
-      const profile = await this.getProfile(user.id)
-      return this.mapUserToAuthUser(user, profile, true)
-    } catch (error) {
-      console.error("Error getting current user:", error)
-      return null
-    }
-  }
-
-  async updateProfile(updates: Partial<AuthUser>): Promise<AuthUser> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    if (!user) throw new Error("Not authenticated")
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        first_name: updates.firstName,
-        last_name: updates.lastName,
-        profile_image: updates.profileImage,
+  useEffect(() => {
+    setLoading(true)
+    authService
+      .getCurrentUser()
+      .then((currentUser) => {
+        setUser(currentUser)
+        console.log("AuthProvider (mount): Current user:", currentUser?.email)
       })
-      .eq("id", user.id)
-      .select()
-      .single()
+      .catch((err) => {
+        console.error("AuthProvider (mount): Error getting current user:", err)
+      })
+      .finally(() => {
+        setLoading(false)
+      })
 
-    if (error) throw error
+    const {
+      data: { subscription },
+    } = authService.onAuthStateChange((appUser, session) => {
+      // session is now also passed
+      console.log(`AuthProvider (onAuthStateChange): Event received. User: ${appUser?.email}, Path: ${pathname}`)
+      // The rest of the onAuthStateChange logic using appUser remains similar
+      // setUser(appUser) is already being done based on appUser
+      // ... (keep existing redirection logic) ...
+      setUser(appUser) // Explicitly set user state
+      setLoading(false)
 
-    return this.mapUserToAuthUser(user, data, true)
-  }
+      const isAuthPage = pathname === "/login" || pathname === "/register"
+      const isPublicPage = isAuthPage || pathname === "/"
 
-  async resendConfirmation(email: string): Promise<void> {
-    const { error } = await supabase.auth.resend({
-      type: "signup",
-      email: email,
+      if (appUser && isAuthPage) {
+        console.log("AuthProvider (onAuthStateChange): User authenticated and on auth page, redirecting to /dashboard")
+        router.push("/dashboard")
+      } else if (!appUser && !isPublicPage) {
+        console.log(
+          "AuthProvider (onAuthStateChange): User not authenticated and not on public page, redirecting to /login",
+        )
+        router.push("/login")
+      }
     })
 
-    if (error) throw error
-  }
+    return () => {
+      subscription?.unsubscribe()
+    }
+  }, [pathname, router])
 
-  private async getProfile(userId: string): Promise<Profile | null> {
+  const handleSignIn = useCallback(async (email: string, password: string) => {
+    setOperationLoading(true)
+    setError(null)
     try {
-      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
+      // authService.signIn now returns an object { user, error }
+      const { user: signedInUser, error: signInError } = await authService.signIn(email, password)
+      console.log("AuthProvider (handleSignIn): authService response:", { user: signedInUser, error: signInError })
 
-      if (error) {
-        console.error("Error fetching profile:", error)
-        return null
+      if (signInError) {
+        throw signInError // Let the catch block handle it
       }
-
-      return data
-    } catch (error) {
-      console.error("Error in getProfile:", error)
-      return null
-    }
-  }
-
-  private mapUserToAuthUser(user: User, profile: Partial<Profile> | null, emailConfirmed = true): AuthUser {
-    return {
-      id: user.id,
-      email: user.email!,
-      firstName: profile?.first_name || user.user_metadata?.first_name || "",
-      lastName: profile?.last_name || user.user_metadata?.last_name || "",
-      profileImage: profile?.profile_image || undefined,
-      createdAt: new Date(user.created_at),
-      emailConfirmed,
-    }
-  }
-
-  // Listen to auth state changes
-  onAuthStateChange(callback: (user: AuthUser | null) => void) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth state change:", event, session?.user?.id)
-
-      if (session?.user) {
-        try {
-          const profile = await this.getProfile(session.user.id)
-          const authUser = this.mapUserToAuthUser(session.user, profile, true)
-          callback(authUser)
-        } catch (error) {
-          console.error("Error in auth state change:", error)
-          callback(null)
-        }
+      if (signedInUser) {
+        console.log("AuthProvider (handleSignIn): User signed in successfully via authService:", signedInUser.email)
+        // onAuthStateChange should handle setting the user state and redirection
       } else {
-        callback(null)
+        // This case should ideally be handled by authService returning an error
+        throw new Error("Sign-in successful according to authService but no user data returned to AuthProvider.")
       }
-    })
+    } catch (err: any) {
+      console.error("AuthProvider (handleSignIn): SignIn error caught", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Sign-in failed"))
+      // It's important to re-throw if the form needs to know about the error directly,
+      // otherwise, the error state in AuthProvider is sufficient.
+      // For now, we let the form rely on the context's error state.
+    } finally {
+      setOperationLoading(false)
+    }
+  }, [])
+
+  const handleSignUp = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+    setOperationLoading(true)
+    setError(null)
+    try {
+      // authService.signUp now returns an object { user, error }
+      const { user: signedUpUser, error: signUpError } = await authService.signUp(email, password, firstName, lastName)
+      console.log("AuthProvider (handleSignUp): authService response:", { user: signedUpUser, error: signUpError })
+
+      if (signUpError) {
+        throw signUpError // Let the catch block handle it
+      }
+      if (signedUpUser) {
+        console.log("AuthProvider (handleSignUp): User signed up successfully via authService:", signedUpUser.email)
+        // onAuthStateChange should handle setting the user state and redirection
+        // Potentially show a "Please check your email to confirm account" message if email confirmation is enabled
+      } else {
+        // This case implies signup might require email confirmation, or an unexpected issue.
+        // authService.signUp should ideally return an error if it truly failed.
+        // If no user and no error, it might mean confirmation is pending.
+        console.warn("AuthProvider (handleSignUp): SignUp call to authService returned no user and no error.")
+        // You might want to set a specific message for the UI here.
+      }
+    } catch (err: any) {
+      console.error("AuthProvider (handleSignUp): SignUp error caught", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Sign-up failed"))
+    } finally {
+      setOperationLoading(false)
+    }
+  }, [])
+
+  const handleSignInWithGoogle = useCallback(async () => {
+    setOperationLoading(true)
+    setError(null)
+    try {
+      await authService.signInWithGoogle()
+      // onAuthStateChange will handle redirect
+    } catch (err: any) {
+      console.error("AuthProvider (handleSignInWithGoogle): Google SignIn error", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Google Sign-in failed"))
+      throw err
+    } finally {
+      setOperationLoading(false)
+    }
+  }, [])
+
+  const handleSignOut = useCallback(async () => {
+    console.log("AuthProvider: Attempting sign out...")
+    setOperationLoading(true)
+    setError(null)
+    try {
+      await authService.signOut()
+      console.log("AuthProvider: authService.signOut completed.")
+      // onAuthStateChange will set user to null and handle redirect.
+    } catch (err: any) {
+      console.error("AuthProvider: SignOut error", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Sign out failed"))
+      throw err
+    } finally {
+      setOperationLoading(false)
+      console.log("AuthProvider: Sign out operation finished (finally block).")
+    }
+  }, [])
+
+  const contextValue: AuthContextType = {
+    user,
+    loading,
+    operationLoading,
+    error,
+    signIn: handleSignIn,
+    signUp: handleSignUp,
+    signInWithGoogle: handleSignInWithGoogle,
+    signOut: handleSignOut,
+    updateProfile: authService.updateProfile,
   }
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }
 
-// Export the singleton instance
-export const authService = SupabaseAuthService.getInstance()
-
-// Helper function for backward compatibility
-export async function getUser(): Promise<AuthUser | null> {
-  return authService.getCurrentUser()
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider")
+  }
+  return context
 }
