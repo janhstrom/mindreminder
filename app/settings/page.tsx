@@ -27,6 +27,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { SettingsService } from "@/lib/settings-service"
+import { TimeInput } from "@/components/ui/time-input"
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -265,20 +266,18 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                       <div>
                         <Label htmlFor="quiet-start">Start Time</Label>
-                        <Input
+                        <TimeInput
                           id="quiet-start"
-                          type="time"
                           value={notifications.quietStart}
-                          onChange={(e) => setNotifications((prev) => ({ ...prev, quietStart: e.target.value }))}
+                          onChange={(value) => setNotifications((prev) => ({ ...prev, quietStart: value }))}
                         />
                       </div>
                       <div>
                         <Label htmlFor="quiet-end">End Time</Label>
-                        <Input
+                        <TimeInput
                           id="quiet-end"
-                          type="time"
                           value={notifications.quietEnd}
-                          onChange={(e) => setNotifications((prev) => ({ ...prev, quietEnd: e.target.value }))}
+                          onChange={(value) => setNotifications((prev) => ({ ...prev, quietEnd: value }))}
                         />
                       </div>
                     </div>
@@ -471,11 +470,10 @@ export default function SettingsPage() {
 
                   <div>
                     <Label htmlFor="defaultTime">Default Reminder Time</Label>
-                    <Input
+                    <TimeInput
                       id="defaultTime"
-                      type="time"
                       value={preferences.defaultReminderTime}
-                      onChange={(e) => setPreferences((prev) => ({ ...prev, defaultReminderTime: e.target.value }))}
+                      onChange={(value) => setPreferences((prev) => ({ ...prev, defaultReminderTime: value }))}
                     />
                   </div>
 

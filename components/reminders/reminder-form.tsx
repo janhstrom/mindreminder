@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Clock, MapPin, ImageIcon, Calendar } from "lucide-react"
 import type { Reminder } from "@/types"
 import { UserPreferencesService } from "@/lib/user-preferences"
+import { TimeInput } from "@/components/ui/time-input"
 
 interface ReminderFormProps {
   reminder?: Reminder
@@ -89,12 +90,24 @@ export function ReminderForm({ reminder, onSave, onCancel }: ReminderFormProps) 
               <Clock className="h-4 w-4" />
               Scheduled Time
             </Label>
-            <Input
-              id="scheduledTime"
-              type="datetime-local"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Input
+                type="date"
+                value={scheduledTime ? scheduledTime.split("T")[0] : ""}
+                onChange={(e) => {
+                  const dateValue = e.target.value
+                  const timeValue = scheduledTime ? scheduledTime.split("T")[1] : "09:00"
+                  setScheduledTime(dateValue ? `${dateValue}T${timeValue}` : "")
+                }}
+              />
+              <TimeInput
+                value={scheduledTime ? scheduledTime.split("T")[1] || "09:00" : "09:00"}
+                onChange={(timeValue) => {
+                  const dateValue = scheduledTime ? scheduledTime.split("T")[0] : new Date().toISOString().split("T")[0]
+                  setScheduledTime(`${dateValue}T${timeValue}`)
+                }}
+              />
+            </div>
             {scheduledTime && (
               <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                 <strong>Preview:</strong> {getFormattedPreview()}
