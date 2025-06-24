@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required" }, { status: 400 })
     }
 
-    const user = await SupabaseAuthService.getInstance().signIn(email, password)
+    await SupabaseAuthService.getInstance().signIn(email, password)
 
-    return NextResponse.json({ user })
-  } catch (error) {
+    return NextResponse.json({ message: "Login successful" })
+  } catch (error: any) {
     console.error("Login error:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Login failed" }, { status: 401 })
+    return NextResponse.json({ error: error.message || "Login failed" }, { status: 401 })
   }
 }

@@ -6,50 +6,25 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
 interface LoginFormProps {
-  onLogin: () => void
   onToggleMode: () => void
 }
 
-export function LoginForm({ onLogin, onToggleMode }: LoginFormProps) {
+export function LoginForm({ onToggleMode }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const { signIn, loading, error } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
     try {
-      // Simple fetch to our auth endpoint
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Login failed")
-      }
-
-      onLogin()
+      await signIn(email, password)
     } catch (err) {
-      let errorMessage = "Login failed"
-      if (err instanceof Error) {
-        errorMessage = err.message
-      }
-      setError(errorMessage)
-    } finally {
-      setIsLoading(false)
+      console.error("Login failed:", err)
     }
   }
 
@@ -91,8 +66,8 @@ export function LoginForm({ onLogin, onToggleMode }: LoginFormProps) {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing In..." : "Sign In"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Signing In..." : "Sign In"}
           </Button>
         </form>
 

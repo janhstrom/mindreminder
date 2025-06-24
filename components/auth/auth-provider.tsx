@@ -8,10 +8,10 @@ import { useRouter } from "next/navigation"
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
+  error: string | null
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
   signOut: () => Promise<void>
-  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,100 +19,88 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
-    let mounted = true
-
-    // Get initial user
-    const getInitialUser = async () => {
+    const fetchUser = async () => {
+      setLoading(true)
       try {
         const currentUser = await authService.getCurrentUser()
-        console.log("Initial user:", currentUser)
-        if (mounted) {
-          setUser(currentUser)
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error("Error getting initial user:", error)
-        if (mounted) {
-          setUser(null)
-          setLoading(false)
-        }
+        setUser(currentUser)
+      } catch (err) {
+        setError("Failed to fetch user")
+        console.error("Error fetching user:", err)
+      } finally {
+        setLoading(false)
       }
     }
 
-    getInitialUser()
+    fetchUser()
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = authService.onAuthStateChange((user) => {
-      console.log("Auth state changed:", user)
-      if (mounted) {
-        setUser(user)
-        setLoading(false)
+    const { data: authListener } = authService.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") {
+        setUser(session?.user as AuthUser)
+      } else if (event === "SIGNED_OUT") {
+        setUser(null)
       }
     })
 
     return () => {
-      mounted = false
-      subscription.unsubscribe()
+      authListener.subscription.unsubscribe()
     }
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      const user = await authService.signIn(email, password)
-      setUser(user)
-      setLoading(false)
-      // Use router instead of window.location for better React handling
+      await authService.signIn(email, password)
       router.push("/dashboard")
-    } catch (error) {
+    } catch (err: any) {
+      setError(err.message || "Sign-in failed")
+      console.error("Sign-in error:", err)
+    } finally {
       setLoading(false)
-      console.error("Sign in error:", error)
-      throw error
     }
   }
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      const user = await authService.signUp(email, password, firstName, lastName)
-      setUser(user)
+      await authService.signUp(email, password, firstName, lastName)
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Sign-up failed")
+      console.error("Sign-up error:", err)
+    } finally {
       setLoading(false)
-      // Use window.location for reliable redirect
-      window.location.href = "/dashboard"
-    } catch (error) {
-      setLoading(false)
-      console.error("Sign up error:", error)
-      throw error
     }
   }
 
   const signOut = async () => {
+    setLoading(true)
+    setError(null)
     try {
       await authService.signOut()
-      setUser(null)
-      // Use window.location for reliable redirect
-      window.location.href = "/"
-    } catch (error) {
-      console.error("Sign out error:", error)
-      throw error
+      router.push("/")
+    } catch (err: any) {
+      setError(err.message || "Sign-out failed")
+      console.error("Sign-out error:", err)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const logout = signOut // Alias for backward compatibility
+  const value = { user, loading, error, signIn, signUp, signOut }
 
-  return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, logout }}>{children}</AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {
   const context = useContext(AuthContext)
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider")
   }
   return context

@@ -6,51 +6,27 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
 interface RegisterFormProps {
-  onRegister: () => void
   onToggleMode: () => void
 }
 
-export function RegisterForm({ onRegister, onToggleMode }: RegisterFormProps) {
+export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const { signUp, loading, error } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
     try {
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password, firstName, lastName }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.error || "Registration failed")
-      }
-
-      onRegister()
+      await signUp(email, password, firstName, lastName)
     } catch (err) {
-      let errorMessage = "Registration failed"
-      if (err instanceof Error) {
-        errorMessage = err.message
-      }
-      setError(errorMessage)
-    } finally {
-      setIsLoading(false)
+      console.error("Registration failed:", err)
     }
   }
 
@@ -115,8 +91,8 @@ export function RegisterForm({ onRegister, onToggleMode }: RegisterFormProps) {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating Account..." : "Create Account"}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Creating Account..." : "Create Account"}
           </Button>
         </form>
 
