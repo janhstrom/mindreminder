@@ -35,8 +35,15 @@ export default function SettingsPage() {
     if (user) {
       SettingsService.getSettings(user.id)
         .then((fetchedSettings) => {
-          setSettings(fetchedSettings)
-          setInitialSettings(fetchedSettings)
+          // Ensure optional time fields are empty strings for form inputs
+          const processedSettings: UserSettings = {
+            ...fetchedSettings,
+            quietStart: fetchedSettings.quietStart || "",
+            quietEnd: fetchedSettings.quietEnd || "",
+            defaultReminderTime: fetchedSettings.defaultReminderTime || "",
+          }
+          setSettings(processedSettings)
+          setInitialSettings(processedSettings) // Also use processed settings for initial state
         })
         .catch((error) => {
           console.error("Error fetching settings in page useEffect:", error)
@@ -54,8 +61,8 @@ export default function SettingsPage() {
             soundEnabled: true,
             vibrationEnabled: true,
             quietHours: false,
-            quietStart: "22:00",
-            quietEnd: "08:00",
+            quietStart: "", // Default to empty string
+            quietEnd: "", // Default to empty string
             firstName: "User",
             lastName: "",
             email: user.email || "",
@@ -64,7 +71,7 @@ export default function SettingsPage() {
             theme: "system",
             language: "en",
             reminderStyle: "gentle",
-            defaultReminderTime: "09:00",
+            defaultReminderTime: "", // Default to empty string
             weekStartsOn: "monday",
             dateFormat: "MM/dd/yyyy",
             timeFormat: "12h",
