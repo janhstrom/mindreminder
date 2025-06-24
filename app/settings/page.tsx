@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
 import {
   ArrowLeft,
   Bell,
@@ -27,7 +26,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { SettingsService } from "@/lib/settings-service"
-import { TimeInput } from "@/components/ui/time-input"
+import { TimeInputFormatted } from "@/components/ui/time-input-formatted"
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
@@ -266,18 +265,20 @@ export default function SettingsPage() {
                     <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                       <div>
                         <Label htmlFor="quiet-start">Start Time</Label>
-                        <TimeInput
+                        <TimeInputFormatted
                           id="quiet-start"
                           value={notifications.quietStart}
                           onChange={(value) => setNotifications((prev) => ({ ...prev, quietStart: value }))}
+                          format={preferences.timeFormat}
                         />
                       </div>
                       <div>
                         <Label htmlFor="quiet-end">End Time</Label>
-                        <TimeInput
+                        <TimeInputFormatted
                           id="quiet-end"
                           value={notifications.quietEnd}
                           onChange={(value) => setNotifications((prev) => ({ ...prev, quietEnd: value }))}
+                          format={preferences.timeFormat}
                         />
                       </div>
                     </div>
@@ -470,10 +471,11 @@ export default function SettingsPage() {
 
                   <div>
                     <Label htmlFor="defaultTime">Default Reminder Time</Label>
-                    <TimeInput
+                    <TimeInputFormatted
                       id="defaultTime"
                       value={preferences.defaultReminderTime}
                       onChange={(value) => setPreferences((prev) => ({ ...prev, defaultReminderTime: value }))}
+                      format={preferences.timeFormat}
                     />
                   </div>
 
@@ -539,21 +541,6 @@ export default function SettingsPage() {
             </TabsContent>
           </Tabs>
         )}
-
-        {/* Status Bar */}
-        <div className="mt-8 bg-green-50 border border-green-200 rounded-xl p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-green-800">
-                {saving ? "Saving settings..." : "Settings connected to database"}
-              </span>
-            </div>
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              {saving ? "Saving..." : "Ready"}
-            </Badge>
-          </div>
-        </div>
       </div>
     </div>
   )
