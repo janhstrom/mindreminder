@@ -99,7 +99,7 @@ export default function DashboardPage() {
               currentStreak: Number(item.currentStreak) || 0,
               bestStreak: Number(item.bestStreak) || 0,
               completedToday: Boolean(item.completedToday),
-              createdAt: item.createdAt || new Date().toISOString(),
+              createdAt: new Date().toISOString(),
               userId: user.id,
             }))
           setMicroActions(safeMicroActions)
@@ -340,37 +340,46 @@ export default function DashboardPage() {
                   <div className="grid gap-4">
                     {reminders
                       .filter((reminder) => reminder && reminder.title) // Extra safety check
-                      .map((reminder) => (
-                        <Card
-                          key={reminder.id}
-                          className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow"
-                        >
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900 mb-1">{reminder.title}</h3>
-                                {reminder.description && (
-                                  <p className="text-sm text-gray-600 mb-2">{reminder.description}</p>
-                                )}
-                                <div className="flex items-center gap-4 text-xs text-gray-500">
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {new Date(reminder.createdAt).toLocaleDateString()}
-                                  </span>
+                      .map((reminder) => {
+                        try {
+                          return (
+                            <Card
+                              key={reminder.id}
+                              className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <h3 className="font-semibold text-gray-900 mb-1">{reminder.title}</h3>
+                                    {reminder.description && (
+                                      <p className="text-sm text-gray-600 mb-2">{reminder.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {new Date(reminder.createdAt).toLocaleDateString()}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div
+                                      className={`w-2 h-2 rounded-full ${reminder.isActive ? "bg-green-500" : "bg-gray-400"}`}
+                                    ></div>
+                                    <span
+                                      className={`text-xs ${reminder.isActive ? "text-green-600" : "text-gray-500"}`}
+                                    >
+                                      {reminder.isActive ? "Active" : "Inactive"}
+                                    </span>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className={`w-2 h-2 rounded-full ${reminder.isActive ? "bg-green-500" : "bg-gray-400"}`}
-                                ></div>
-                                <span className={`text-xs ${reminder.isActive ? "text-green-600" : "text-gray-500"}`}>
-                                  {reminder.isActive ? "Active" : "Inactive"}
-                                </span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                              </CardContent>
+                            </Card>
+                          )
+                        } catch (error) {
+                          console.error("Error rendering reminder card:", error)
+                          return null // Render nothing if there's an error
+                        }
+                      })}
                   </div>
                 ) : (
                   <Card className="bg-white shadow-lg border-0">
@@ -413,39 +422,49 @@ export default function DashboardPage() {
                   <div className="grid gap-4">
                     {microActions
                       .filter((action) => action && action.title) // Extra safety check
-                      .map((action) => (
-                        <Card key={action.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="font-semibold text-gray-900">{action.title}</h3>
-                                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                                    {action.category}
-                                  </span>
+                      .map((action) => {
+                        try {
+                          return (
+                            <Card
+                              key={action.id}
+                              className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h3 className="font-semibold text-gray-900">{action.title}</h3>
+                                      <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                        {action.category}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                      <span className="flex items-center gap-1">
+                                        <TrendingUp className="h-4 w-4" />
+                                        {action.currentStreak} day streak
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-4 w-4" />
+                                        {action.duration}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                                  >
+                                    Mark Done
+                                  </Button>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <span className="flex items-center gap-1">
-                                    <TrendingUp className="h-4 w-4" />
-                                    {action.currentStreak} day streak
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="h-4 w-4" />
-                                    {action.duration}
-                                  </span>
-                                </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="border-purple-200 text-purple-700 hover:bg-purple-50"
-                              >
-                                Mark Done
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                              </CardContent>
+                            </Card>
+                          )
+                        } catch (error) {
+                          console.error("Error rendering micro-action card:", error)
+                          return null // Render nothing if there's an error
+                        }
+                      })}
                   </div>
                 ) : (
                   <Card className="bg-white shadow-lg border-0">
