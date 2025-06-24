@@ -25,11 +25,11 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={() => router.push("/login")}>
+              <Button variant="ghost" onClick={() => router.push("/")}>
                 Sign In
               </Button>
               <Button
-                onClick={() => router.push("/register")}
+                onClick={() => router.push("/")}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 Get Started Free

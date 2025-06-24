@@ -2,8 +2,6 @@
 
 import { supabase } from "./supabase"
 import type { Database } from "./supabase"
-import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
 import type { QuoteTopic } from "@/types"
 
 type QuoteRow = Database["public"]["Tables"]["quotes"]["Row"]
@@ -29,33 +27,9 @@ export class SupabaseQuoteService {
   }
 
   async generateQuote(topic: QuoteTopic): Promise<{ quote: string; author: string }> {
-    // Check if OpenAI API key is available
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn("OpenAI API key not found, using fallback quotes")
-      return this.getFallbackQuote(topic)
-    }
-
-    try {
-      const { text } = await generateText({
-        model: openai("gpt-4o"),
-        prompt: `Generate an inspiring and meaningful quote about ${topic} from a real historical figure, philosopher, author, or notable person. Return the response in this exact format: "Quote text here" - Author Name`,
-        system:
-          "You are a knowledgeable curator of inspirational quotes from real people throughout history. Always include proper attribution.",
-      })
-
-      const result = this.parseQuoteAndAuthor(text.trim())
-
-      // If parsing failed or quote is empty, use fallback
-      if (!result.quote || result.quote.trim() === "") {
-        console.warn("Generated quote was empty, using fallback")
-        return this.getFallbackQuote(topic)
-      }
-
-      return result
-    } catch (error) {
-      console.error("Error generating quote:", error)
-      return this.getFallbackQuote(topic)
-    }
+    // Always use fallback quotes for now to ensure it works
+    console.log("Generating quote for topic:", topic)
+    return this.getFallbackQuote(topic)
   }
 
   async getFavoriteQuotes(userId: string): Promise<FavoriteQuote[]> {
