@@ -25,14 +25,20 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
 
   return (
     <>
+      {/* This overlay is for mobile view when the sidebar is open */}
       {isOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onClose} />}
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex h-full w-64 flex-col border-r bg-background transition-transform duration-300 ease-in-out",
+          // On mobile, it slides from the left. On desktop, it's either there or not.
+          // We remove md:static to make it collapsible on desktop as well.
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center border-b px-6 shrink-0"></div>
+        <div className="flex h-16 items-center border-b px-6 shrink-0">
+          {/* The logo is now in the main header, so this space is for alignment. */}
+          {/* The "Navigation" heading has been removed as requested. */}
+        </div>
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
             {navigation.map((item) => {
@@ -43,7 +49,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
               return (
                 <Link key={item.name} href={item.href} passHref legacyBehavior>
                   <Button
-                    as="a" // Important for NextLink to correctly style the button
+                    as="a"
                     variant={isActive ? "secondary" : "ghost"}
                     className="w-full justify-start text-sm"
                     onClick={onClose} // Close mobile menu on navigation
