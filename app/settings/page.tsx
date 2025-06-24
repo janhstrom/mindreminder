@@ -55,6 +55,8 @@ export default function SettingsPage() {
     reminderStyle: "gentle",
     defaultReminderTime: "09:00",
     weekStartsOn: "monday",
+    dateFormat: "MM/dd/yyyy",
+    timeFormat: "12h",
   })
 
   useEffect(() => {
@@ -83,6 +85,8 @@ export default function SettingsPage() {
           reminderStyle: settings.reminderStyle,
           defaultReminderTime: settings.defaultReminderTime,
           weekStartsOn: settings.weekStartsOn,
+          dateFormat: settings.dateFormat || "MM/dd/yyyy",
+          timeFormat: settings.timeFormat || "12h",
         })
       } catch (error) {
         console.error("Error loading settings:", error)
@@ -407,6 +411,39 @@ export default function SettingsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <div>
+                    <Label>Date Format</Label>
+                    <Select
+                      value={preferences.dateFormat}
+                      onValueChange={(value) => setPreferences((prev) => ({ ...prev, dateFormat: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MM/dd/yyyy">MM/dd/yyyy (US)</SelectItem>
+                        <SelectItem value="dd/MM/yyyy">dd/MM/yyyy (UK/EU)</SelectItem>
+                        <SelectItem value="yyyy-MM-dd">yyyy-MM-dd (ISO)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Time Format</Label>
+                    <Select
+                      value={preferences.timeFormat}
+                      onValueChange={(value) => setPreferences((prev) => ({ ...prev, timeFormat: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
+                        <SelectItem value="24h">24-hour</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -506,13 +543,17 @@ export default function SettingsPage() {
         )}
 
         {/* Status Bar */}
-        <div className="mt-8 bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="mt-8 bg-green-50 border border-green-200 rounded-xl p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-blue-800">Settings ready for database integration</span>
+              <span className="text-sm text-green-800">
+                {saving ? "Saving settings..." : "Settings connected to database"}
+              </span>
             </div>
-            <Badge variant="secondary">Demo Mode</Badge>
+            <Badge variant="secondary" className="bg-green-100 text-green-800">
+              {saving ? "Saving..." : "Ready"}
+            </Badge>
           </div>
         </div>
       </div>

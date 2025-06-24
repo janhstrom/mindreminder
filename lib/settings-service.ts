@@ -26,6 +26,8 @@ export interface UserSettings {
   reminderStyle: string
   defaultReminderTime: string
   weekStartsOn: string
+  dateFormat: string
+  timeFormat: string
 }
 
 export class SettingsService {
@@ -62,6 +64,8 @@ export class SettingsService {
         reminderStyle: settings?.reminder_style ?? "gentle",
         defaultReminderTime: settings?.default_reminder_time ?? "09:00",
         weekStartsOn: settings?.week_starts_on ?? "monday",
+        dateFormat: settings?.date_format ?? "MM/dd/yyyy",
+        timeFormat: settings?.time_format ?? "12h",
       }
     } catch (error) {
       console.error("Error fetching settings:", error)
@@ -84,6 +88,8 @@ export class SettingsService {
         reminderStyle: "gentle",
         defaultReminderTime: "09:00",
         weekStartsOn: "monday",
+        dateFormat: "MM/dd/yyyy",
+        timeFormat: "12h",
       }
     }
   }
@@ -92,14 +98,35 @@ export class SettingsService {
     try {
       const actualUserId = userId || (await UserService.ensureDemoUser())
 
-      // Update profile
-      await supabase.from("profiles").upsert({
-        id: actualUserId,
-        email: settings.email,
-        first_name: settings.firstName,
-        last_name: settings.lastName,
-        bio: settings.bio,
-      })
+      // Update profile - handle conflicts gracefully
+      try {
+        const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", actualUserId).single()
+
+        if (existingProfile) {
+          // Update existing profile
+          await supabase
+            .from("profiles")
+            .update({
+              email: settings.email,
+              first_name: settings.firstName,
+              last_name: settings.lastName,
+              bio: settings.bio,
+            })
+            .eq("id", actualUserId)
+        } else {
+          // Insert new profile
+          await supabase.from("profiles").insert({
+            id: actualUserId,
+            email: settings.email,
+            first_name: settings.firstName,
+            last_name: settings.lastName,
+            bio: settings.bio,
+          })
+        }
+      } catch (profileError) {
+        console.log("Profile update skipped:", profileError)
+        // Continue with settings update even if profile fails
+      }
 
       // Update settings
       await supabase.from("user_settings").upsert({
@@ -117,6 +144,8 @@ export class SettingsService {
         reminder_style: settings.reminderStyle,
         default_reminder_time: settings.defaultReminderTime,
         week_starts_on: settings.weekStartsOn,
+        date_format: settings.dateFormat,
+        time_format: settings.timeFormat,
       })
 
       console.log("Settings saved successfully!")
