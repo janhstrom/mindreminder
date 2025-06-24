@@ -13,6 +13,7 @@ import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 import { NotificationSettings } from "@/components/settings/notification-settings"
+import { UserPreferencesCard } from "@/components/settings/user-preferences"
 
 export default function SettingsPage() {
   const { user, loading: authLoading } = useAuth()
@@ -161,7 +162,7 @@ export default function SettingsPage() {
               </div>
               <div className="lg:col-span-2 space-y-8">
                 <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
-                {/* <UserPreferencesCard /> */}
+                <UserPreferencesCard />
                 <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} />
               </div>
             </div>
