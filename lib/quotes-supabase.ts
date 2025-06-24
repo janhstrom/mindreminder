@@ -82,7 +82,7 @@ export class SupabaseQuoteService {
       .eq("user_id", userId) // Critical: filter by user
       .eq("content", content)
       .eq("is_favorite", true)
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.log("Quote not found or error:", error)

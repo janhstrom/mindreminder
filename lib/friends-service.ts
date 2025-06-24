@@ -78,8 +78,13 @@ export class FriendsService {
     const { data, error } = await supabase
       .from("friends")
       .select(`
-        *,
-        friend_profile:profiles!friends_friend_id_fkey(
+        id,
+        user_id,
+        friend_id,
+        status,
+        created_at,
+        updated_at,
+        friend_profile:profiles!friend_id(
           first_name,
           last_name,
           email,
@@ -90,7 +95,10 @@ export class FriendsService {
       .eq("status", "accepted")
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error("Error fetching friends:", error)
+      throw error
+    }
 
     return data.map((row: any) => ({
       id: row.id,
@@ -99,10 +107,10 @@ export class FriendsService {
       status: row.status,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
-      firstName: row.friend_profile.first_name,
-      lastName: row.friend_profile.last_name,
-      email: row.friend_profile.email,
-      profileImage: row.friend_profile.profile_image,
+      firstName: row.friend_profile?.first_name || "N/A",
+      lastName: row.friend_profile?.last_name || "",
+      email: row.friend_profile?.email || "N/A",
+      profileImage: row.friend_profile?.profile_image,
     }))
   }
 
@@ -110,30 +118,37 @@ export class FriendsService {
     const { data, error } = await supabase
       .from("friends")
       .select(`
-        *,
-        sender_profile:profiles!friends_user_id_fkey(
+        id,
+        user_id,
+        friend_id,
+        status,
+        created_at,
+        sender_profile:profiles!user_id(
           first_name,
           last_name,
           email,
           profile_image
         )
       `)
-      .eq("friend_id", userId)
+      .eq("friend_id", userId) // User is the recipient of the request
       .eq("status", "pending")
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error("Error fetching friend requests:", error)
+      throw error
+    }
 
     return data.map((row: any) => ({
       id: row.id,
-      fromUserId: row.user_id,
-      toUserId: row.friend_id,
+      fromUserId: row.user_id, // This is the sender
+      toUserId: row.friend_id, // This is the current user
       status: row.status,
       createdAt: new Date(row.created_at),
-      fromFirstName: row.sender_profile.first_name,
-      fromLastName: row.sender_profile.last_name,
-      fromEmail: row.sender_profile.email,
-      fromProfileImage: row.sender_profile.profile_image,
+      fromFirstName: row.sender_profile?.first_name || "N/A",
+      fromLastName: row.sender_profile?.last_name || "",
+      fromEmail: row.sender_profile?.email || "N/A",
+      fromProfileImage: row.sender_profile?.profile_image,
     }))
   }
 
@@ -163,6 +178,7 @@ export class FriendsService {
       .single()
 
     if (checkError && checkError.code !== "PGRST116") {
+      // PGRST116 means no rows found, which is fine here
       throw checkError
     }
 
@@ -191,13 +207,13 @@ export class FriendsService {
       .from("friends")
       .update({ status: "accepted" })
       .eq("id", requestId)
-      .eq("friend_id", userId)
+      .eq("friend_id", userId) // Ensure the current user is the recipient
 
     if (error) throw error
   }
 
   async declineFriendRequest(userId: string, requestId: string): Promise<void> {
-    const { error } = await supabase.from("friends").delete().eq("id", requestId).eq("friend_id", userId)
+    const { error } = await supabase.from("friends").delete().eq("id", requestId).eq("friend_id", userId) // Ensure the current user is the recipient
 
     if (error) throw error
   }
@@ -238,7 +254,7 @@ export class FriendsService {
         from_user_id: sharedBy,
         type: "reminder_shared",
         title: "Reminder Shared",
-        message: `${sharerProfile.first_name} ${sharerProfile.last_name} shared a reminder: "${reminderData.title}"`,
+        message: `${sharerProfile.first_name || "Someone"} ${sharerProfile.last_name || ""} shared a reminder: "${reminderData.title}"`,
         metadata: { reminder_id: reminderId, shared_reminder_message: message },
       })
     }
@@ -248,14 +264,23 @@ export class FriendsService {
     const { data, error } = await supabase
       .from("shared_reminders")
       .select(`
-        *,
+        id,
+        reminder_id,
+        shared_by,
+        shared_with,
+        message,
+        is_read,
+        created_at,
         reminder:reminders(title, description, image),
-        sharer:profiles!shared_reminders_shared_by_fkey(first_name, last_name)
+        sharer:profiles!shared_by(first_name, last_name)
       `)
       .eq("shared_with", userId)
       .order("created_at", { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      console.error("Error fetching shared reminders:", error)
+      throw error
+    }
 
     return data.map((row: any) => ({
       id: row.id,
@@ -265,11 +290,11 @@ export class FriendsService {
       message: row.message,
       isRead: row.is_read,
       createdAt: new Date(row.created_at),
-      reminderTitle: row.reminder.title,
-      reminderDescription: row.reminder.description,
-      reminderImage: row.reminder.image,
-      sharerFirstName: row.sharer.first_name,
-      sharerLastName: row.sharer.last_name,
+      reminderTitle: row.reminder?.title || "N/A",
+      reminderDescription: row.reminder?.description,
+      reminderImage: row.reminder?.image,
+      sharerFirstName: row.sharer?.first_name || "N/A",
+      sharerLastName: row.sharer?.last_name || "",
     }))
   }
 
@@ -287,14 +312,15 @@ export class FriendsService {
   async getNotifications(userId: string): Promise<FriendNotification[]> {
     const { data, error } = await supabase
       .from("friend_notifications")
-      .select("*")
+      .select("*") // Consider joining with profiles if sender info is needed directly
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(50)
 
     if (error) throw error
 
-    return data.map((row: NotificationRow) => ({
+    return data.map((row: any) => ({
+      // Cast row to any if NotificationRow type is too strict or doesn't match select *
       id: row.id,
       userId: row.user_id,
       fromUserId: row.from_user_id,

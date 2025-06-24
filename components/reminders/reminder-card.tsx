@@ -23,6 +23,10 @@ export function ReminderCard({ reminder, onEdit, onDelete, onToggle, onShare }: 
     return formatDateTime(date)
   }
 
+  if (!reminder) {
+    return null // Or some placeholder/error UI
+  }
+
   return (
     <Card className={`transition-all ${reminder.isActive ? "" : "opacity-60"}`}>
       <CardHeader className="pb-3">
