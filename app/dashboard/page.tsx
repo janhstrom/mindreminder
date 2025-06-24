@@ -21,74 +21,55 @@ import {
 import Link from "next/link"
 import { CreateReminderModal } from "@/components/reminders/create-reminder-modal"
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
-import { useDateTimeFormat } from "@/hooks/use-date-time-format"
+import { simpleDataService } from "@/lib/simple-data-service"
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("inspiration")
-  const [stats] = useState({
-    activeReminders: 3,
-    activeHabits: 2,
-    bestStreak: 7,
-    completedToday: 1,
-    totalHabits: 2,
+  const [stats, setStats] = useState({
+    activeReminders: 0,
+    activeHabits: 0,
+    bestStreak: 0,
+    completedToday: 0,
+    totalHabits: 0,
   })
-
-  const [reminders] = useState([
-    {
-      id: "1",
-      title: "Morning Affirmation",
-      description: "Start your day with positive thoughts",
-      createdAt: new Date().toISOString(),
-      scheduledTime: new Date().toISOString(),
-    },
-  ])
-
-  const [microActions] = useState([
-    {
-      id: "1",
-      title: "Drink Water",
-      category: "Health",
-      currentStreak: 3,
-      completedToday: false,
-    },
-  ])
-
-  const [loading] = useState(false)
+  const [reminders, setReminders] = useState<any[]>([])
+  const [microActions, setMicroActions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMicroActionModal, setShowMicroActionModal] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const { formatDateTime } = useDateTimeFormat()
 
   useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      console.error("Dashboard error:", event.error)
-      setError("Something went wrong loading the dashboard")
-    }
-
-    window.addEventListener("error", handleError)
-    return () => window.removeEventListener("error", handleError)
+    loadData()
   }, [])
 
-  const formatDate = (dateString: string) => {
-    return formatDateTime(dateString)
+  const loadData = async () => {
+    try {
+      setLoading(true)
+      const [statsData, remindersData, microActionsData] = await Promise.all([
+        simpleDataService.getStats(),
+        simpleDataService.getReminders(),
+        simpleDataService.getMicroActions(),
+      ])
+
+      setStats(statsData)
+      setReminders(remindersData)
+      setMicroActions(microActionsData)
+    } catch (error) {
+      console.error("Error loading data:", error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="text-center py-8">
-            <h2 className="text-xl font-bold mb-4">Dashboard Error</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Reload Page</Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
+  const handleReminderCreated = () => {
+    setShowReminderModal(false)
+    loadData()
   }
 
-  console.log("🎯 Dashboard page is loading...")
+  const handleMicroActionCreated = () => {
+    setShowMicroActionModal(false)
+    loadData()
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -146,7 +127,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{loading ? "..." : stats.activeReminders}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.activeReminders}</div>
               <p className="text-xs text-blue-600 mt-1">keeping you inspired</p>
             </CardContent>
           </Card>
@@ -159,7 +140,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{loading ? "..." : stats.activeHabits}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.activeHabits}</div>
               <p className="text-xs text-purple-600 mt-1">micro-actions building</p>
             </CardContent>
           </Card>
@@ -172,23 +153,21 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">{loading ? "..." : stats.bestStreak}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.bestStreak}</div>
               <p className="text-xs text-orange-600 mt-1">days strong</p>
             </CardContent>
           </Card>
 
           <Card className="bg-white shadow-sm border-0 shadow-green-100/50">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Completed Today</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Total Items</CardTitle>
               <div className="p-2 bg-green-100 rounded-lg">
                 <Zap className="h-4 w-4 text-green-600" />
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">
-                {loading ? "..." : `${stats.completedToday}/${stats.totalHabits}`}
-              </div>
-              <p className="text-xs text-green-600 mt-1">micro-actions done</p>
+              <div className="text-2xl font-bold text-gray-900">{stats.totalHabits + stats.activeReminders}</div>
+              <p className="text-xs text-green-600 mt-1">items created</p>
             </CardContent>
           </Card>
         </div>
@@ -196,114 +175,58 @@ export default function DashboardPage() {
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
-            <TabsTrigger
-              value="inspiration"
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-50 data-[state=active]:to-orange-50"
-            >
-              <Sparkles className="h-4 w-4" />
+            <TabsTrigger value="inspiration">
+              <Sparkles className="h-4 w-4 mr-2" />
               Daily Inspiration
             </TabsTrigger>
-            <TabsTrigger
-              value="reminders"
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-50 data-[state=active]:to-cyan-50"
-            >
-              <Bell className="h-4 w-4" />
+            <TabsTrigger value="reminders">
+              <Bell className="h-4 w-4 mr-2" />
               My Reminders ({stats.activeReminders})
             </TabsTrigger>
-            <TabsTrigger
-              value="habits"
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-50 data-[state=active]:to-pink-50"
-            >
-              <Target className="h-4 w-4" />
+            <TabsTrigger value="habits">
+              <Target className="h-4 w-4 mr-2" />
               Habit Builder ({stats.activeHabits})
             </TabsTrigger>
-            <TabsTrigger
-              value="quotes"
-              className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-50 data-[state=active]:to-emerald-50"
-            >
-              <Quote className="h-4 w-4" />
+            <TabsTrigger value="quotes">
+              <Quote className="h-4 w-4 mr-2" />
               Quote Generator
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="inspiration" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-0 shadow-lg">
-                <CardHeader>
-                  <CardTitle className="flex items-center text-orange-900">
-                    <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
-                    Today's Inspiration
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl">
-                    <blockquote className="text-lg italic text-center mb-4 text-gray-800">
-                      "The journey of a thousand miles begins with one step."
-                    </blockquote>
-                    <footer className="text-center text-sm text-gray-600">— Lao Tzu</footer>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1 bg-white/50 hover:bg-white/80">
-                      <Heart className="h-4 w-4 mr-1" />
-                      Save
-                    </Button>
-                    <Button size="sm" variant="outline" className="flex-1 bg-white/50 hover:bg-white/80">
-                      <Quote className="h-4 w-4 mr-1" />
-                      New Quote
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white shadow-lg border-0">
-                <CardHeader>
-                  <CardTitle className="text-gray-900">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50"
-                    onClick={() => setShowReminderModal(true)}
-                  >
-                    <div className="text-left">
-                      <div className="font-medium">💭 Daily Affirmation</div>
-                      <div className="text-sm text-gray-500">Remind me to practice self-love</div>
-                    </div>
+            <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center text-orange-900">
+                  <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
+                  Today's Inspiration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-white/70 backdrop-blur-sm p-6 rounded-xl">
+                  <blockquote className="text-lg italic text-center mb-4 text-gray-800">
+                    "The journey of a thousand miles begins with one step."
+                  </blockquote>
+                  <footer className="text-center text-sm text-gray-600">— Lao Tzu</footer>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1 bg-white/50 hover:bg-white/80">
+                    <Heart className="h-4 w-4 mr-1" />
+                    Save
                   </Button>
-
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50"
-                    onClick={() => setShowReminderModal(true)}
-                  >
-                    <div className="text-left">
-                      <div className="font-medium">🌅 Morning Motivation</div>
-                      <div className="text-sm text-gray-500">Start my day with intention</div>
-                    </div>
+                  <Button size="sm" variant="outline" className="flex-1 bg-white/50 hover:bg-white/80">
+                    <Quote className="h-4 w-4 mr-1" />
+                    New Quote
                   </Button>
-
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start h-auto p-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50"
-                    onClick={() => setShowMicroActionModal(true)}
-                  >
-                    <div className="text-left">
-                      <div className="font-medium">🎯 Quick Habit</div>
-                      <div className="text-sm text-gray-500">Build a 2-minute micro-action</div>
-                    </div>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="reminders" className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Your Reminders</h2>
-                <p className="text-gray-600">
-                  {loading ? "Loading..." : `${reminders.length} active reminders from your database`}
-                </p>
+                <p className="text-gray-600">{reminders.length} active reminders</p>
               </div>
               <Button
                 className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
@@ -314,14 +237,7 @@ export default function DashboardPage() {
               </Button>
             </div>
 
-            {loading ? (
-              <Card className="bg-white shadow-lg border-0">
-                <CardContent className="text-center py-16">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading your reminders...</p>
-                </CardContent>
-              </Card>
-            ) : reminders.length > 0 ? (
+            {reminders.length > 0 ? (
               <div className="grid gap-4">
                 {reminders.map((reminder) => (
                   <Card key={reminder.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
@@ -333,12 +249,12 @@ export default function DashboardPage() {
                           <div className="flex items-center gap-4 text-xs text-gray-500">
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {formatDate(reminder.createdAt)}
+                              {new Date(reminder.createdAt).toLocaleDateString()}
                             </span>
                             {reminder.scheduledTime && (
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {formatDate(reminder.scheduledTime)}
+                                {new Date(reminder.scheduledTime).toLocaleString()}
                               </span>
                             )}
                           </div>
@@ -360,7 +276,7 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="text-xl font-semibold mb-3 text-gray-900">No Reminders Yet</h3>
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Your database is connected and ready! Create your first reminder to get started.
+                    Create your first reminder to get started with building better habits!
                   </p>
                   <Button
                     className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
@@ -378,9 +294,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Habit Builder</h2>
-                <p className="text-gray-600">
-                  {loading ? "Loading..." : `${microActions.length} active micro-actions from your database`}
-                </p>
+                <p className="text-gray-600">{microActions.length} active micro-actions</p>
               </div>
               <Button
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
@@ -391,14 +305,7 @@ export default function DashboardPage() {
               </Button>
             </div>
 
-            {loading ? (
-              <Card className="bg-white shadow-lg border-0">
-                <CardContent className="text-center py-16">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-                  <p className="text-gray-600">Loading your habits...</p>
-                </CardContent>
-              </Card>
-            ) : microActions.length > 0 ? (
+            {microActions.length > 0 ? (
               <div className="grid gap-4">
                 {microActions.map((action) => (
                   <Card key={action.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
@@ -416,29 +323,19 @@ export default function DashboardPage() {
                               <TrendingUp className="h-4 w-4" />
                               {action.currentStreak} day streak
                             </span>
-                            {action.completedToday && (
-                              <span className="flex items-center gap-1 text-green-600">
-                                <Zap className="h-4 w-4" />
-                                Completed today
-                              </span>
-                            )}
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {action.duration}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {action.completedToday ? (
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                              <span className="text-green-600 text-sm">✓</span>
-                            </div>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-purple-200 text-purple-700 hover:bg-purple-50"
-                            >
-                              Mark Done
-                            </Button>
-                          )}
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                        >
+                          Mark Done
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -452,7 +349,7 @@ export default function DashboardPage() {
                   </div>
                   <h3 className="text-xl font-semibold mb-3 text-gray-900">No Habits Yet</h3>
                   <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                    Your database is connected and ready! Create your first micro-action to start building habits.
+                    Create your first micro-action to start building lasting habits!
                   </p>
                   <Button
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
@@ -495,11 +392,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Modals */}
-      <CreateReminderModal open={showReminderModal} onOpenChange={setShowReminderModal} onReminderCreated={() => {}} />
+      <CreateReminderModal
+        open={showReminderModal}
+        onOpenChange={setShowReminderModal}
+        onReminderCreated={handleReminderCreated}
+      />
       <CreateMicroActionModal
         open={showMicroActionModal}
         onOpenChange={setShowMicroActionModal}
-        onMicroActionCreated={() => {}}
+        onMicroActionCreated={handleMicroActionCreated}
       />
     </div>
   )
