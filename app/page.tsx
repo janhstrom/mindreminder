@@ -1,96 +1,12 @@
 "use client"
-
-import type React from "react"
-
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { Bell, Target, Heart, Brain, TrendingUp, CheckCircle, ArrowRight, Star, Users, Zap } from "lucide-react"
 
 export default function HomePage() {
-  const [showLogin, setShowLogin] = useState(false)
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [isLogin, setIsLogin] = useState(true)
   const router = useRouter()
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // For now, just redirect to dashboard
-    router.push("/dashboard")
-  }
-
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">{isLogin ? "Welcome Back" : "Create Account"}</CardTitle>
-            <p className="text-center text-gray-600">
-              {isLogin ? "Sign in to MindReMinder" : "Join MindReMinder today"}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="John" />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Doe" />
-                  </div>
-                </div>
-              )}
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                {isLogin ? "Sign In" : "Create Account"}
-              </Button>
-            </form>
-
-            <div className="mt-4 text-center">
-              <Button variant="link" onClick={() => setIsLogin(!isLogin)}>
-                {isLogin ? "Need an account? Sign up" : "Have an account? Sign in"}
-              </Button>
-            </div>
-
-            <div className="mt-4 text-center">
-              <Button variant="ghost" onClick={() => setShowLogin(false)}>
-                ← Back to homepage
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -109,20 +25,11 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setShowLogin(true)
-                  setIsLogin(true)
-                }}
-              >
+              <Button variant="ghost" onClick={() => router.push("/login")}>
                 Sign In
               </Button>
               <Button
-                onClick={() => {
-                  setShowLogin(true)
-                  setIsLogin(false)
-                }}
+                onClick={() => router.push("/register")}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 Get Started Free
@@ -157,10 +64,7 @@ export default function HomePage() {
               <Button
                 size="lg"
                 className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                onClick={() => {
-                  setShowLogin(true)
-                  setIsLogin(false)
-                }}
+                onClick={() => router.push("/register")}
               >
                 Start Building Habits
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -320,10 +224,7 @@ export default function HomePage() {
             size="lg"
             variant="secondary"
             className="text-lg px-12 py-4 bg-white text-blue-600 hover:bg-gray-100"
-            onClick={() => {
-              setShowLogin(true)
-              setIsLogin(false)
-            }}
+            onClick={() => router.push("/register")}
           >
             Start Your Journey Today
             <ArrowRight className="ml-2 h-6 w-6" />
