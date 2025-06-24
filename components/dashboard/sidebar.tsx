@@ -28,13 +28,12 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
       {isOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={onClose} />}
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex h-full w-64 flex-col border-r bg-background transition-transform duration-300 ease-in-out md:static md:translate-x-0",
+          "fixed inset-y-0 left-0 z-40 flex h-full w-64 flex-col border-r bg-background transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center border-b px-6">
-          {/* Logo and name removed from here as requested, it's in the main Header */}
-          <span className="font-semibold text-lg">Navigation</span>
+        <div className="flex h-16 items-center border-b px-6 shrink-0">
+          {/* Intentionally empty, was "Navigation" heading */}
         </div>
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
