@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "All fields are required" }, { status: 400 })
     }
 
-    const user = await SupabaseAuthService.getInstance().signUp(email, password, firstName, lastName)
+    await SupabaseAuthService.getInstance().signUp(email, password, firstName, lastName)
 
-    return NextResponse.json({ user })
-  } catch (error) {
+    return NextResponse.json({ message: "Registration successful" })
+  } catch (error: any) {
     console.error("Registration error:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Registration failed" }, { status: 400 })
+    return NextResponse.json({ error: error.message || "Registration failed" }, { status: 400 })
   }
 }
