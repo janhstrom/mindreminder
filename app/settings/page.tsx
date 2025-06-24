@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
-import { ProfileImageUpload } from "@/components/settings/profile-image-upload"
+// import { ProfileImageUpload } from "@/components/settings/profile-image-upload" // Commented out
 import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
 import { UserPreferencesCard } from "@/components/settings/user-preferences"
 import { NotificationSettings } from "@/components/notifications/notification-settings"
@@ -33,15 +33,52 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (user) {
-      SettingsService.getSettings(user.id).then((fetchedSettings) => {
-        setSettings(fetchedSettings)
-        setInitialSettings(fetchedSettings) // Store initial state for reset
-      })
+      SettingsService.getSettings(user.id)
+        .then((fetchedSettings) => {
+          setSettings(fetchedSettings)
+          setInitialSettings(fetchedSettings)
+        })
+        .catch((error) => {
+          console.error("Error fetching settings in page useEffect:", error)
+          toast({
+            title: "Error Loading Settings",
+            description: "Could not load your settings. Please try again later.",
+            variant: "destructive",
+          })
+          // Fallback to default structure if service fails catastrophically,
+          // though SettingsService itself has a fallback.
+          // This ensures 'settings' is not null to avoid infinite loader if service's fallback fails.
+          const defaultFallback: UserSettings = {
+            pushEnabled: true,
+            emailEnabled: false,
+            soundEnabled: true,
+            vibrationEnabled: true,
+            quietHours: false,
+            quietStart: "22:00",
+            quietEnd: "08:00",
+            firstName: "User",
+            lastName: "",
+            email: user.email || "",
+            timezone: "UTC",
+            bio: "",
+            theme: "system",
+            language: "en",
+            reminderStyle: "gentle",
+            defaultReminderTime: "09:00",
+            weekStartsOn: "monday",
+            dateFormat: "MM/dd/yyyy",
+            timeFormat: "12h",
+          }
+          setSettings(defaultFallback)
+          setInitialSettings(defaultFallback)
+        })
     }
-  }, [user])
+  }, [user, toast])
 
   const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => {
-    setSettings((prev) => (prev ? { ...prev, ...newSettings } : null))
+    // Ensure not to add profileImage here if it's not part of UserSettings type
+    const { profileImage, ...restOfSettings } = newSettings as any // temp cast to handle if profileImage was passed
+    setSettings((prev) => (prev ? { ...prev, ...restOfSettings } : null))
   }, [])
 
   const handleSave = async () => {
@@ -49,7 +86,7 @@ export default function SettingsPage() {
     setIsSaving(true)
     try {
       await SettingsService.saveSettings(settings, user.id)
-      setInitialSettings(settings) // Update initial state on successful save
+      setInitialSettings(settings)
       toast({
         title: "Success!",
         description: "Your settings have been saved.",
@@ -107,11 +144,14 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1 space-y-8">
-                <ProfileImageUpload
+                {/* <ProfileImageUpload
                   userName={`${settings.firstName} ${settings.lastName}`}
                   currentImage={user?.profileImage}
                   onImageChange={(imageUrl) => handleSettingsChange({ profileImage: imageUrl })}
-                />
+                /> */}
+                <p className="text-sm text-muted-foreground p-4 border rounded-md">
+                  Profile image upload temporarily disabled for debugging.
+                </p>
               </div>
               <div className="lg:col-span-2 space-y-8">
                 <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
