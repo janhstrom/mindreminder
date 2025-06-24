@@ -3,7 +3,7 @@
 import type React from "react"
 import { useAuth } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react" // Added Suspense
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -15,27 +15,28 @@ import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { AuthUser } from "@/lib/auth-supabase"
 import { UserPreferencesCard } from "@/components/settings/user-preferences"
-import { NotificationSettings } from "@/components/notifications/notification-settings"
+// Corrected import name based on file export
+import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
 import { Bell, UserIcon } from "lucide-react"
 
-// Helper to create a placeholder for a component that might be missing
-const SafeComponent = ({ Component, name }: { Component: React.ComponentType | undefined; name: string }) => {
-  if (!Component) {
-    console.warn(`Warning: The component "${name}" could not be loaded. It might be missing or have an export error.`)
-    return (
-      <div className="p-4 border border-dashed rounded-md">
-        <p className="text-sm text-muted-foreground">
-          The <strong>{name}</strong> component is currently unavailable.
-        </p>
-      </div>
-    )
-  }
-  return <Component />
+// Helper to create a placeholder for a component that might be missing or slow to load
+const SafeComponentLoader = ({ children, name }: { children: React.ReactNode; name: string }) => {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-4 border border-dashed rounded-md">
+          <p className="text-sm text-muted-foreground">Loading {name}...</p>
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
+  )
 }
 
 export default function SettingsPage() {
   const { user, loading, signOut, updateProfile } = useAuth()
-  const router = useRouter()
+  const router = useRouter() // Not strictly needed here if AuthProvider handles all redirects
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const [firstName, setFirstName] = useState("")
@@ -52,7 +53,13 @@ export default function SettingsPage() {
   }, [user, loading])
 
   const handleLogout = async () => {
-    await signOut()
+    try {
+      await signOut()
+      // AuthProvider should redirect to /login or /
+    } catch (error) {
+      console.error("Logout error on settings page:", error)
+      toast({ title: "Logout Failed", description: "Could not log out. Please try again.", variant: "destructive" })
+    }
   }
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -87,8 +94,10 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-background">
       <Header
         user={user}
-        onLogout={handleLogout}
-        onProfileClick={() => {}}
+        onLogout={handleLogout} // Ensure this is passed and used
+        onProfileClick={() => {
+          /* Already on profile */
+        }}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex">
@@ -139,7 +148,9 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <SafeComponent Component={UserPreferencesCard} name="UserPreferencesCard" />
+            <SafeComponentLoader name="User Preferences">
+              <UserPreferencesCard />
+            </SafeComponentLoader>
 
             <Card>
               <CardHeader>
@@ -149,7 +160,20 @@ export default function SettingsPage() {
                 <CardDescription>Manage how you receive notifications.</CardDescription>
               </CardHeader>
               <CardContent>
-                <SafeComponent Component={NotificationSettings} name="NotificationSettings" />
+                <SafeComponentLoader name="Notification Settings">
+                  <NotificationSettingsCard />
+                </SafeComponentLoader>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Account Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button variant="destructive" onClick={handleLogout} disabled={loading}>
+                  {loading ? "Logging out..." : "Log Out"}
+                </Button>
               </CardContent>
             </Card>
           </div>
