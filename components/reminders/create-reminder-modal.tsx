@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -9,12 +8,18 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { simpleDataService } from "@/lib/simple-data-service"
+// Removed simpleDataService import as it's handled by the parent page
 
+interface ReminderFormData {
+  title: string
+  description?: string
+  scheduledTime?: string
+  isActive: boolean
+}
 interface CreateReminderModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onReminderCreated: () => void
+  onReminderCreated: (data: ReminderFormData) => void // Pass data back
 }
 
 export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: CreateReminderModalProps) {
@@ -30,22 +35,23 @@ export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: C
 
     setSaving(true)
     try {
-      await simpleDataService.createReminder({
+      const reminderData: ReminderFormData = {
         title: title.trim(),
         description: description.trim() || undefined,
         scheduledTime: scheduledTime || undefined,
         isActive,
-      })
+      }
+      onReminderCreated(reminderData) // Pass data back
 
       // Reset form
       setTitle("")
       setDescription("")
       setScheduledTime("")
       setIsActive(true)
-
-      onReminderCreated()
+      // onOpenChange(false); // Optionally close modal after creation
     } catch (error) {
-      console.error("Error creating reminder:", error)
+      console.error("Error in reminder creation process:", error)
+      // Handle error display to user if necessary
     } finally {
       setSaving(false)
     }

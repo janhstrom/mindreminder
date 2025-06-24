@@ -1,20 +1,22 @@
 "use client"
 
 import type React from "react"
-
 import { useAuth } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
-import { Header } from "@/components/dashboard/header" // Assuming you want the same header
-import { Sidebar } from "@/components/dashboard/sidebar" // Assuming you want the same sidebar
+import { Header } from "@/components/dashboard/header"
+import { Sidebar } from "@/components/dashboard/sidebar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { toast } from "@/hooks/use-toast" // Assuming you have a toast hook
+import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import type { AuthUser } from "@/lib/auth-supabase" // Or your AuthUser type path
+import type { AuthUser } from "@/lib/auth-supabase"
+import { UserPreferencesCard } from "@/components/settings/user-preferences" // Re-added
+import { NotificationSettings } from "@/components/notifications/notification-settings" // Re-added
+import { Bell, UserIcon } from "lucide-react" // Renamed User to UserIcon
 
 export default function SettingsPage() {
   const { user, loading, signOut, updateProfile } = useAuth()
@@ -39,7 +41,7 @@ export default function SettingsPage() {
   const handleLogout = async () => {
     try {
       await signOut()
-      // AuthProvider should handle redirect
+      // AuthProvider should handle redirect to "/" or "/login"
     } catch (error) {
       console.error("Logout error:", error)
       toast({ title: "Logout Failed", description: "Could not log out. Please try again.", variant: "destructive" })
@@ -80,35 +82,32 @@ export default function SettingsPage() {
         user={user}
         onLogout={handleLogout}
         onProfileClick={() => {
-          /* Already on profile, or navigate to a sub-section if any */
+          /* Already on profile */
         }}
-        onMenuClick={() => setSidebarOpen(true)}
+        onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex">
-        <Sidebar activeTab="settings" isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className={cn("flex-1 p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
           <div className="max-w-3xl mx-auto space-y-8">
             <Card>
               <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
-                <CardDescription>Update your personal information.</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <UserIcon className="h-5 w-5" /> Profile Settings
+                </CardTitle>
+                <CardDescription>Update your personal information and profile picture.</CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleProfileUpdate} className="space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <Avatar className="h-20 w-20">
+                  <div className="flex flex-col items-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-6">
+                    <Avatar className="h-24 w-24">
                       <AvatarImage
-                        src={
-                          profileImage || `/placeholder.svg?width=80&height=80&query=${user.firstName}+${user.lastName}`
-                        }
-                        alt={user.firstName}
+                        src={profileImage || `/placeholder.svg?width=96&height=96&query=User+Avatar`}
+                        alt={user.firstName || "User"}
                       />
-                      <AvatarFallback>
-                        {user.firstName?.[0]}
-                        {user.lastName?.[0]}
-                      </AvatarFallback>
+                      <AvatarFallback>{(user.firstName?.[0] || "U") + (user.lastName?.[0] || "")}</AvatarFallback>
                     </Avatar>
-                    <div className="space-y-2 flex-1">
+                    <div className="space-y-2 flex-1 w-full">
                       <Label htmlFor="profileImage">Profile Image URL</Label>
                       <Input
                         id="profileImage"
@@ -131,29 +130,36 @@ export default function SettingsPage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input id="email" value={user.email} disabled />
+                    <Input id="email" value={user.email} disabled className="bg-muted/50" />
                   </div>
-                  <Button type="submit" disabled={isSaving}>
+                  <div className="space-y-2">
+                    <Label htmlFor="userId">User ID</Label>
+                    <Input id="userId" value={user.id} disabled className="bg-muted/50 text-xs" />
+                  </div>
+                  <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
                 </form>
               </CardContent>
             </Card>
 
-            {/* Placeholder for other settings sections */}
+            <UserPreferencesCard />
+
             <Card>
               <CardHeader>
-                <CardTitle>Notification Settings</CardTitle>
-                <CardDescription>Manage your notification preferences.</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Bell className="h-5 w-5" /> Notifications
+                </CardTitle>
+                <CardDescription>Manage how you receive notifications.</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">Notification settings will be available here soon.</p>
+                <NotificationSettings />
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Account</CardTitle>
+                <CardTitle>Account Actions</CardTitle>
               </CardHeader>
               <CardContent>
                 <Button variant="destructive" onClick={handleLogout}>

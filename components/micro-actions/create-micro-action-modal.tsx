@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -10,12 +9,21 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { simpleDataService } from "@/lib/simple-data-service"
+// Removed simpleDataService import
+
+interface MicroActionFormData {
+  title: string
+  description?: string
+  category: string
+  duration: string
+  frequency: string
+  isActive: boolean
+}
 
 interface CreateMicroActionModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onMicroActionCreated: () => void
+  onMicroActionCreated: (data: MicroActionFormData) => void // Pass data back
 }
 
 export function CreateMicroActionModal({ open, onOpenChange, onMicroActionCreated }: CreateMicroActionModalProps) {
@@ -33,14 +41,15 @@ export function CreateMicroActionModal({ open, onOpenChange, onMicroActionCreate
 
     setSaving(true)
     try {
-      await simpleDataService.createMicroAction({
+      const microActionData: MicroActionFormData = {
         title: title.trim(),
         description: description.trim() || undefined,
         category,
-        duration: duration || "2 minutes",
+        duration: duration || "2 minutes", // Default if empty
         frequency,
         isActive,
-      })
+      }
+      onMicroActionCreated(microActionData) // Pass data back
 
       // Reset form
       setTitle("")
@@ -49,10 +58,9 @@ export function CreateMicroActionModal({ open, onOpenChange, onMicroActionCreate
       setDuration("")
       setFrequency("daily")
       setIsActive(true)
-
-      onMicroActionCreated()
+      // onOpenChange(false); // Optionally close modal
     } catch (error) {
-      console.error("Error creating micro-action:", error)
+      console.error("Error in micro-action creation process:", error)
     } finally {
       setSaving(false)
     }
@@ -90,9 +98,9 @@ export function CreateMicroActionModal({ open, onOpenChange, onMicroActionCreate
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Category *</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger>
+              <Label htmlFor="category">Category *</Label>
+              <Select value={category} onValueChange={setCategory} required>
+                <SelectTrigger id="category">
                   <SelectValue placeholder="Choose category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -117,9 +125,9 @@ export function CreateMicroActionModal({ open, onOpenChange, onMicroActionCreate
           </div>
 
           <div>
-            <Label>Frequency</Label>
+            <Label htmlFor="frequency">Frequency</Label>
             <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger>
+              <SelectTrigger id="frequency">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
