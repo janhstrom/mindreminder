@@ -8,10 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Calendar, Clock, MapPin, ImageIcon, Bell, AlertCircle } from "lucide-react"
+import { Calendar, MapPin, Save } from "lucide-react"
 import { DashboardDataService } from "@/lib/dashboard-data"
-import { TimeInput } from "@/components/ui/time-input"
 
 interface CreateReminderModalProps {
   open: boolean
@@ -20,176 +18,136 @@ interface CreateReminderModalProps {
 }
 
 export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: CreateReminderModalProps) {
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [scheduledTime, setScheduledTime] = useState("")
-  const [location, setLocation] = useState("")
-  const [image, setImage] = useState("")
-  const [isActive, setIsActive] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    scheduledDate: "",
+    scheduledTime: "09:00",
+    location: "",
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim()) return
-
-    setIsSubmitting(true)
-    setError(null)
+    setLoading(true)
 
     try {
-      console.log("🚀 Starting reminder creation...")
+      // Combine date and time into a single datetime string
+      const scheduledDateTime =
+        formData.scheduledDate && formData.scheduledTime
+          ? `${formData.scheduledDate}T${formData.scheduledTime}`
+          : undefined
 
-      await DashboardDataService.createReminder({
-        title: title.trim(),
-        description: description.trim() || undefined,
-        scheduledTime: scheduledTime ? scheduledTime : undefined,
-        location: location.trim() || undefined,
-        image: image.trim() || undefined,
-        isActive,
-      })
+      const reminderData = {
+        title: formData.title,
+        description: formData.description,
+        scheduledTime: scheduledDateTime,
+        location: formData.location || undefined,
+        image: undefined,
+        isActive: true,
+      }
 
-      console.log("✅ Reminder created successfully!")
+      console.log("🔄 Creating reminder with data:", reminderData)
+
+      await DashboardDataService.createReminder(reminderData)
 
       // Reset form
-      setTitle("")
-      setDescription("")
-      setScheduledTime("")
-      setLocation("")
-      setImage("")
-      setIsActive(true)
+      setFormData({
+        title: "",
+        description: "",
+        scheduledDate: "",
+        scheduledTime: "09:00",
+        location: "",
+      })
 
-      // Close modal and refresh data
-      onOpenChange(false)
       onReminderCreated()
-    } catch (error: any) {
-      console.error("❌ Error in handleSubmit:", error)
-      setError(error.message || "Failed to create reminder. Please try again.")
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Error creating reminder:", error)
     } finally {
-      setIsSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-blue-600" />
+            <Calendar className="h-5 w-5 text-blue-600" />
             Create New Reminder
           </DialogTitle>
         </DialogHeader>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-red-900">Error Creating Reminder</h3>
-                <p className="text-red-800 text-sm mt-1">{error}</p>
-                <p className="text-red-700 text-xs mt-2">Check the browser console (F12) for more details.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Title */}
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
             <Label htmlFor="title">Title *</Label>
             <Input
               id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={formData.title}
+              onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
               placeholder="What would you like to be reminded about?"
               required
             />
           </div>
 
-          {/* Description */}
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add more details (optional)"
+              value={formData.description}
+              onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
+              placeholder="Add more details about this reminder..."
               rows={3}
             />
           </div>
 
-          {/* Scheduled Time */}
-          <div className="space-y-2">
-            <Label htmlFor="scheduledTime" className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Scheduled Time
-            </Label>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="scheduledDate">Date</Label>
               <Input
+                id="scheduledDate"
                 type="date"
-                value={scheduledTime ? scheduledTime.split("T")[0] : ""}
-                onChange={(e) => {
-                  const timeValue = scheduledTime ? scheduledTime.split("T")[1] : "09:00"
-                  setScheduledTime(e.target.value ? `${e.target.value}T${timeValue}` : "")
-                }}
+                value={formData.scheduledDate}
+                onChange={(e) => setFormData((prev) => ({ ...prev, scheduledDate: e.target.value }))}
               />
-              <TimeInput
-                value={scheduledTime ? scheduledTime.split("T")[1] || "09:00" : "09:00"}
-                onChange={(timeValue) => {
-                  const dateValue = scheduledTime ? scheduledTime.split("T")[0] : new Date().toISOString().split("T")[0]
-                  setScheduledTime(`${dateValue}T${timeValue}`)
-                }}
+            </div>
+            <div>
+              <Label htmlFor="scheduledTime">Time</Label>
+              <Input
+                id="scheduledTime"
+                type="time"
+                value={formData.scheduledTime}
+                onChange={(e) => setFormData((prev) => ({ ...prev, scheduledTime: e.target.value }))}
               />
             </div>
           </div>
 
-          {/* Location */}
-          <div className="space-y-2">
-            <Label htmlFor="location" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Location
-            </Label>
-            <Input
-              id="location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Where should this reminder appear?"
-            />
+          <div>
+            <Label htmlFor="location">Location (Optional)</Label>
+            <div className="relative">
+              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                id="location"
+                value={formData.location}
+                onChange={(e) => setFormData((prev) => ({ ...prev, location: e.target.value }))}
+                placeholder="Where will this reminder be relevant?"
+                className="pl-10"
+              />
+            </div>
           </div>
 
-          {/* Image URL */}
-          <div className="space-y-2">
-            <Label htmlFor="image" className="flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" />
-              Image URL
-            </Label>
-            <Input
-              id="image"
-              value={image}
-              onChange={(e) => setImage(e.target.value)}
-              placeholder="Add an inspiring image (optional)"
-            />
-          </div>
-
-          {/* Active Toggle */}
-          <div className="flex items-center justify-between">
-            <Label htmlFor="isActive" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Active Reminder
-            </Label>
-            <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+              Cancel
+            </Button>
             <Button
               type="submit"
-              className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
-              disabled={isSubmitting || !title.trim()}
+              disabled={loading || !formData.title}
+              className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
             >
-              {isSubmitting ? "Creating..." : "Create Reminder"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-              Cancel
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? "Creating..." : "Create Reminder"}
             </Button>
           </div>
         </form>
