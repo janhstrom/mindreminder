@@ -10,42 +10,66 @@ import { useAuth } from "@/components/auth/auth-provider"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
-interface LoginFormProps {
+interface RegisterFormProps {
   onToggleMode: () => void
 }
 
-export function LoginForm({ onToggleMode }: LoginFormProps) {
+export function RegisterForm({ onToggleMode }: RegisterFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const { signIn, operationLoading, error } = useAuth()
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const { signUp, operationLoading, error } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (operationLoading) return // Prevent multiple submissions
+    if (operationLoading) return
     try {
-      await signIn(email, password)
-      // AuthProvider will handle redirection on successful sign-in
+      await signUp(email, password, firstName, lastName)
+      // AuthProvider will handle redirection
     } catch (err) {
-      // Error is already set in AuthProvider, no need to set it here unless for specific form feedback
-      console.error("Login form submission error:", err)
+      console.error("Registration form submission error:", err)
     }
   }
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
+        <CardTitle className="text-2xl text-center">Create Account</CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          Sign in to your MindReMinder account
+          Join MindReMinder to start building better habits
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="firstName-register">First Name</Label>
+              <Input
+                id="firstName-register"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                placeholder="First name"
+                autoComplete="given-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="lastName-register">Last Name</Label>
+              <Input
+                id="lastName-register"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                placeholder="Last name"
+                autoComplete="family-name"
+              />
+            </div>
+          </div>
           <div className="space-y-2">
-            <Label htmlFor="email-login">Email</Label>{" "}
-            {/* Changed htmlFor to avoid conflict if RegisterForm is on same page */}
+            <Label htmlFor="email-register">Email</Label>
             <Input
-              id="email-login"
+              id="email-register"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -55,15 +79,16 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password-login">Password</Label>
+            <Label htmlFor="password-register">Password</Label>
             <Input
-              id="password-login"
+              id="password-register"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="Enter your password"
-              autoComplete="current-password"
+              placeholder="Create a password (min. 6 characters)"
+              minLength={6}
+              autoComplete="new-password"
             />
           </div>
 
@@ -75,13 +100,13 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
           )}
 
           <Button type="submit" className="w-full" disabled={operationLoading}>
-            {operationLoading ? "Signing In..." : "Sign In"}
+            {operationLoading ? "Creating Account..." : "Create Account"}
           </Button>
         </form>
 
         <div className="mt-4 text-center">
           <Button variant="link" onClick={onToggleMode} disabled={operationLoading}>
-            Don't have an account? Sign up
+            Already have an account? Sign in
           </Button>
         </div>
       </CardContent>
