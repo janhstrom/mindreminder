@@ -4,7 +4,6 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { authService, type AuthUser } from "@/lib/auth-supabase" // Ensure this path is correct
 import { useRouter, usePathname } from "next/navigation"
-import type { Session } from "@supabase/supabase-js"
 
 interface AuthContextType {
   user: AuthUser | null
@@ -45,36 +44,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = authService.onAuthStateChange((event, session: Session | null) => {
-      console.log(`AuthProvider (onAuthStateChange): Event: ${event}, Path: ${pathname}`)
-      console.log("AuthProvider (onAuthStateChange): Full session object:", session)
-
-      const supabaseUser = session?.user ?? null
-
-      // Transform Supabase user to AuthUser if needed, or ensure AuthUser matches Supabase User structure
-      // For now, let's assume AuthUser is compatible or a superset of Supabase's User
-      const appUser = supabaseUser
-        ? ({
-            id: supabaseUser.id,
-            email: supabaseUser.email,
-            // Add other fields from your AuthUser type that exist on supabaseUser
-            // e.g., user_metadata, app_metadata if you use them
-            ...supabaseUser.user_metadata, // Spread user_metadata if it contains first_name, last_name etc.
-          } as AuthUser)
-        : null
-
-      console.log("AuthProvider (onAuthStateChange): Derived appUser:", appUser)
-      setUser(appUser)
+    } = authService.onAuthStateChange((appUser, session) => {
+      // session is now also passed
+      console.log(`AuthProvider (onAuthStateChange): Event received. User: ${appUser?.email}, Path: ${pathname}`)
+      // The rest of the onAuthStateChange logic using appUser remains similar
+      // setUser(appUser) is already being done based on appUser
+      // ... (keep existing redirection logic) ...
+      setUser(appUser) // Explicitly set user state
       setLoading(false)
 
       const isAuthPage = pathname === "/login" || pathname === "/register"
       const isPublicPage = isAuthPage || pathname === "/"
 
       if (appUser && isAuthPage) {
-        console.log("AuthProvider (onAuthStateChange): User signed in and on auth page, redirecting to /dashboard")
+        console.log("AuthProvider (onAuthStateChange): User authenticated and on auth page, redirecting to /dashboard")
         router.push("/dashboard")
       } else if (!appUser && !isPublicPage) {
-        console.log("AuthProvider (onAuthStateChange): User signed out and not on public page, redirecting to /login")
+        console.log(
+          "AuthProvider (onAuthStateChange): User not authenticated and not on public page, redirecting to /login",
+        )
         router.push("/login")
       }
     })
@@ -88,19 +76,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOperationLoading(true)
     setError(null)
     try {
-      const { data, error: signInError } = await authService.signIn(email, password)
-      console.log("AuthProvider (handleSignIn): Supabase signin response:", { data, error: signInError })
-      if (signInError) throw signInError
-      if (data.user) {
-        console.log("AuthProvider (handleSignIn): User signed in successfully:", data.user)
-        // onAuthStateChange should handle setting user and redirecting
+      const response = await authService.signIn(email, password)
+      console.log("AuthProvider (handleSignIn): authService response:", response)
+
+      if (response.error) {
+        throw response.error
+      }
+      if (response.user) {
+        console.log("AuthProvider (handleSignIn): User signed in successfully via authService:", response.user.email)
+        // onAuthStateChange should handle setting the user state and redirection
       } else {
-        throw new Error("Sign-in successful but no user data returned.")
+        throw new Error("Sign-in successful according to authService but no user data returned to AuthProvider.")
       }
     } catch (err: any) {
-      console.error("AuthProvider (handleSignIn): SignIn error", err)
+      console.error("AuthProvider (handleSignIn): SignIn error caught", err)
       setError(err instanceof Error ? err : new Error(err.message || "Sign-in failed"))
-      throw err
     } finally {
       setOperationLoading(false)
     }
@@ -110,23 +100,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOperationLoading(true)
     setError(null)
     try {
-      const { data, error: signUpError } = await authService.signUp(email, password, firstName, lastName)
-      console.log("AuthProvider (handleSignUp): Supabase signup response:", { data, error: signUpError })
-      if (signUpError) throw signUpError
-      if (data.user) {
-        console.log("AuthProvider (handleSignUp): User signed up successfully:", data.user)
-        // onAuthStateChange should handle setting user and redirecting
-      } else if (!data.session && !data.user) {
-        // Check if it's a "user already registered" type of scenario if no error
-        console.warn(
-          "AuthProvider (handleSignUp): Sign up did not return a user or session, but no explicit error. User might exist or email confirmation pending.",
-        )
-        // Potentially set a specific message for the user
+      const response = await authService.signUp(email, password, firstName, lastName)
+      console.log("AuthProvider (handleSignUp): authService response:", response)
+
+      if (response.error) {
+        throw response.error
+      }
+      if (response.user) {
+        console.log("AuthProvider (handleSignUp): User signed up successfully via authService:", response.user.email)
+        // onAuthStateChange will handle setting the user state and redirection
+      } else {
+        console.warn("AuthProvider (handleSignUp): SignUp call to authService returned no user and no error.")
       }
     } catch (err: any) {
-      console.error("AuthProvider (handleSignUp): SignUp error", err)
+      console.error("AuthProvider (handleSignUp): SignUp error caught", err)
       setError(err instanceof Error ? err : new Error(err.message || "Sign-up failed"))
-      throw err
     } finally {
       setOperationLoading(false)
     }
@@ -152,13 +140,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOperationLoading(true)
     setError(null)
     try {
-      await authService.signOut()
+      const { error } = await authService.signOut()
+      if (error) {
+        throw error
+      }
       console.log("AuthProvider: authService.signOut completed.")
       // onAuthStateChange will set user to null and handle redirect.
     } catch (err: any) {
       console.error("AuthProvider: SignOut error", err)
       setError(err instanceof Error ? err : new Error(err.message || "Sign out failed"))
-      throw err
     } finally {
       setOperationLoading(false)
       console.log("AuthProvider: Sign out operation finished (finally block).")
