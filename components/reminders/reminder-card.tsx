@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Clock, MapPin, Edit, Trash2, Share } from "lucide-react"
 import type { Reminder } from "@/types"
-import { UserPreferencesService } from "@/lib/user-preferences"
+import { useDateTimeFormat } from "@/hooks/use-date-time-format"
 
 interface ReminderCardProps {
   reminder: Reminder
@@ -17,10 +17,10 @@ interface ReminderCardProps {
 }
 
 export function ReminderCard({ reminder, onEdit, onDelete, onToggle, onShare }: ReminderCardProps) {
-  const userPreferencesService = UserPreferencesService.getInstance()
+  const { formatDateTime } = useDateTimeFormat()
 
   const formatDate = (date: Date) => {
-    return userPreferencesService.formatDateTime(date)
+    return formatDateTime(date)
   }
 
   return (

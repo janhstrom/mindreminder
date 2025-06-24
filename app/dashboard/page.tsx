@@ -27,6 +27,7 @@ import {
 } from "@/lib/dashboard-data"
 import { CreateReminderModal } from "@/components/reminders/create-reminder-modal"
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
+import { useDateTimeFormat } from "@/hooks/use-date-time-format"
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("inspiration")
@@ -42,6 +43,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMicroActionModal, setShowMicroActionModal] = useState(false)
+
+  const { formatDateTime } = useDateTimeFormat()
 
   useEffect(() => {
     loadDashboardData()
@@ -68,12 +71,7 @@ export default function DashboardPage() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+    return formatDateTime(dateString)
   }
 
   return (
@@ -118,25 +116,6 @@ export default function DashboardPage() {
                   Settings
                 </Button>
               </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* Connection Status */}
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 mb-8">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                <span className="text-green-600 text-xl">🔗</span>
-              </div>
-            </div>
-            <div className="ml-4">
-              <h3 className="text-lg font-semibold text-green-900">Database Connected!</h3>
-              <p className="text-green-700 mt-1">
-                {loading
-                  ? "Loading your data..."
-                  : `Showing ${stats.activeReminders} reminders and ${stats.activeHabits} habits from your Supabase database.`}
-              </p>
             </div>
           </div>
         </div>
