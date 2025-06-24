@@ -10,6 +10,7 @@ import { UserPreferencesService, type UserPreferences } from "@/lib/user-prefere
 import { Analytics } from "@/lib/analytics"
 
 export function UserPreferencesCard() {
+  const [isMounted, setIsMounted] = useState(false)
   const [preferences, setPreferences] = useState<UserPreferences>({
     dateFormat: "MM/dd/yyyy",
     timeFormat: "12h",
@@ -23,6 +24,10 @@ export function UserPreferencesCard() {
   useEffect(() => {
     setPreferences(preferencesService.getPreferences())
   }, [preferencesService])
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const handlePreferenceChange = (key: keyof UserPreferences, value: string) => {
     const newPreferences = { ...preferences, [key]: value }
@@ -50,6 +55,24 @@ export function UserPreferencesCard() {
 
   const exampleDate = new Date()
   const formattedExample = preferences ? preferencesService.formatDateTime(exampleDate, preferences) : "Loading..."
+
+  if (!isMounted) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Globe className="h-5 w-5" />
+            Date & Time Preferences
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 pt-6">
+          <div className="h-8 w-1/2 bg-muted rounded-md animate-pulse" />
+          <div className="h-8 w-3/4 bg-muted rounded-md animate-pulse" />
+          <div className="h-8 w-full bg-muted rounded-md animate-pulse" />
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
