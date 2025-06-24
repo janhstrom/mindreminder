@@ -22,7 +22,7 @@ export function UserPreferencesCard() {
 
   useEffect(() => {
     setPreferences(preferencesService.getPreferences())
-  }, [])
+  }, [preferencesService])
 
   const handlePreferenceChange = (key: keyof UserPreferences, value: string) => {
     const newPreferences = { ...preferences, [key]: value }
@@ -48,9 +48,8 @@ export function UserPreferencesCard() {
     setHasChanges(false)
   }
 
-  // Example date for preview
   const exampleDate = new Date()
-  const formattedExample = preferencesService.formatDateTime(exampleDate)
+  const formattedExample = preferences ? preferencesService.formatDateTime(exampleDate, preferences) : "Loading..."
 
   return (
     <Card>
@@ -73,7 +72,7 @@ export function UserPreferencesCard() {
               onValueChange={(value) => handlePreferenceChange("dateFormat", value as UserPreferences["dateFormat"])}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select date format" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="MM/dd/yyyy">MM/dd/yyyy (US)</SelectItem>
@@ -94,7 +93,7 @@ export function UserPreferencesCard() {
               onValueChange={(value) => handlePreferenceChange("timeFormat", value as UserPreferences["timeFormat"])}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select time format" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
@@ -109,7 +108,7 @@ export function UserPreferencesCard() {
           <Label>Timezone</Label>
           <Select value={preferences.timezone} onValueChange={(value) => handlePreferenceChange("timezone", value)}>
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue placeholder="Select timezone" />
             </SelectTrigger>
             <SelectContent className="max-h-60">
               {preferencesService.getTimezones().map((tz) => (
