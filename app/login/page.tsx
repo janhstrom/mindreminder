@@ -1,119 +1,111 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
-import { authService, type AuthUser } from "@/lib/auth-supabase"
-import { useRouter } from "next/navigation"
 
-interface AuthContextType {
-  user: AuthUser | null
-  loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
-  signOut: () => Promise<void>
-  logout: () => Promise<void>
-}
+import { useState } from "react"
+// import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
+import { useAuth } from "@/components/auth/auth-provider"
+import Link from "next/link"
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export default function LoginPage() {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  // const [isLoading, setIsLoading] = useState(false)
+  // const [error, setError] = useState("")
+  const { signIn, loading, error: authError } = useAuth()
+  // const router = useRouter()
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
-  const [loading, setLoading] = useState(true)
-  const router = useRouter()
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    // setIsLoading(true)
+    // setError("")
 
-  useEffect(() => {
-    let mounted = true
-
-    // Get initial user
-    const getInitialUser = async () => {
-      try {
-        const currentUser = await authService.getCurrentUser()
-        console.log("Initial user:", currentUser)
-        if (mounted) {
-          setUser(currentUser)
-          setLoading(false)
-        }
-      } catch (error) {
-        console.error("Error getting initial user:", error)
-        if (mounted) {
-          setUser(null)
-          setLoading(false)
-        }
-      }
-    }
-
-    getInitialUser()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = authService.onAuthStateChange((user) => {
-      console.log("Auth state changed:", user)
-      if (mounted) {
-        setUser(user)
-        setLoading(false)
-      }
-    })
-
-    return () => {
-      mounted = false
-      subscription.unsubscribe()
-    }
-  }, [])
-
-  const signIn = async (email: string, password: string) => {
     try {
-      setLoading(true)
-      const user = await authService.signIn(email, password)
-      setUser(user)
-      setLoading(false)
-      // Use router instead of window.location for better React handling
-      router.push("/dashboard")
-    } catch (error) {
-      setLoading(false)
-      console.error("Sign in error:", error)
-      throw error
+      await signIn(email, password)
+      // router.push("/dashboard")
+    } catch (err) {
+      console.error("Login page submit error:", err)
     }
+    // finally {
+    //   setIsLoading(false)
+    // }
   }
-
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    try {
-      setLoading(true)
-      const user = await authService.signUp(email, password, firstName, lastName)
-      setUser(user)
-      setLoading(false)
-      // Use window.location for reliable redirect
-      window.location.href = "/dashboard"
-    } catch (error) {
-      setLoading(false)
-      console.error("Sign up error:", error)
-      throw error
-    }
-  }
-
-  const signOut = async () => {
-    try {
-      await authService.signOut()
-      setUser(null)
-      // Use window.location for reliable redirect
-      window.location.href = "/"
-    } catch (error) {
-      console.error("Sign out error:", error)
-      throw error
-    }
-  }
-
-  const logout = signOut // Alias for backward compatibility
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, logout }}>{children}</AuthContext.Provider>
-  )
-}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex items-center justify-center space-x-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-lg">M</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-900">MindReMinder</span>
+            </div>
+            <CardTitle className="text-2xl">Welcome Back</CardTitle>
+            <p className="text-gray-600">Sign in to your account</p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="Enter your email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Enter your password"
+                />
+              </div>
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
+              {authError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{authError}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Signing In..." : "Sign In"}
+              </Button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Don't have an account?{" "}
+                <Link href="/register" className="text-blue-600 hover:text-blue-500 font-medium">
+                  Sign up
+                </Link>
+              </p>
+            </div>
+            <div className="mt-4 text-center">
+              <Link href="/">
+                <Button variant="ghost" size="sm">
+                  ← Back to homepage
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }

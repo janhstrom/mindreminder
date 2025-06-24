@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+// import { useRouter } from "next/navigation" // Removed
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Target, CheckCircle, Clock, TrendingUp, Bell, Sparkles, Quote } from "lucide-react"
@@ -9,9 +9,10 @@ import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { CreateReminderModal } from "@/components/reminders/create-reminder-modal"
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
-import { useAuth } from "@/components/auth/auth-provider"
+import { useAuth } from "@/components/auth/auth-provider" // Ensure this path is correct
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { useRouter } from "next/navigation" // Keep for onProfileClick
 
 interface SafeReminder {
   id: string
@@ -40,23 +41,21 @@ interface SafeMicroAction {
 }
 
 export default function DashboardPage() {
-  const { user, loading, signOut } = useAuth()
-  const router = useRouter()
+  const { user, loading: authLoading, signOut } = useAuth() // Renamed loading to authLoading
+  const router = useRouter() // Keep for onProfileClick
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMicroActionModal, setShowMicroActionModal] = useState(false)
   const [reminders, setReminders] = useState<SafeReminder[]>([])
   const [microActions, setMicroActions] = useState<SafeMicroAction[]>([])
   const [activeTab, setActiveTab] = useState("inspiration")
-  // Remove dataLoading state - not needed
 
-  // Redirect if not authenticated
   useEffect(() => {
-    if (!loading && !user) {
-      console.log("No user, redirecting to login")
-      router.push("/login")
+    if (!authLoading && !user) {
+      console.log("Dashboard: No user, redirecting to login")
+      router.push("/login") // Use router from next/navigation
     }
-  }, [user, loading, router])
+  }, [user, authLoading, router])
 
   // Load data from localStorage safely
   useEffect(() => {
@@ -67,7 +66,6 @@ export default function DashboardPage() {
 
         if (savedReminders) {
           const parsed = JSON.parse(savedReminders)
-          // Filter out null/undefined items and ensure required properties
           const safeReminders = (Array.isArray(parsed) ? parsed : [])
             .filter((item) => item && typeof item === "object" && item.title)
             .map((item) => ({
@@ -85,7 +83,6 @@ export default function DashboardPage() {
 
         if (savedMicroActions) {
           const parsed = JSON.parse(savedMicroActions)
-          // Filter out null/undefined items and ensure required properties
           const safeMicroActions = (Array.isArray(parsed) ? parsed : [])
             .filter((item) => item && typeof item === "object" && item.title)
             .map((item) => ({
@@ -105,8 +102,7 @@ export default function DashboardPage() {
           setMicroActions(safeMicroActions)
         }
       } catch (error) {
-        console.error("Error loading data:", error)
-        // Reset to empty arrays on error
+        console.error("Error loading data from localStorage:", error)
         setReminders([])
         setMicroActions([])
       }
@@ -136,7 +132,7 @@ export default function DashboardPage() {
     try {
       localStorage.setItem(`reminders_${user.id}`, JSON.stringify(newReminders))
     } catch (error) {
-      console.error("Error saving reminders:", error)
+      console.error("Error saving reminders to localStorage:", error)
     }
 
     setShowReminderModal(false)
@@ -169,7 +165,7 @@ export default function DashboardPage() {
     try {
       localStorage.setItem(`microActions_${user.id}`, JSON.stringify(newMicroActions))
     } catch (error) {
-      console.error("Error saving micro-actions:", error)
+      console.error("Error saving micro-actions to localStorage:", error)
     }
 
     setShowMicroActionModal(false)
@@ -180,13 +176,14 @@ export default function DashboardPage() {
       await signOut()
     } catch (error) {
       console.error("Logout error:", error)
-      // Force redirect even if logout fails
-      window.location.href = "/"
+      // AuthProvider handles redirect, but as a fallback:
+      if (typeof window !== "undefined") {
+        window.location.href = "/"
+      }
     }
   }
 
-  // Show loading only while auth is being determined
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -197,8 +194,8 @@ export default function DashboardPage() {
     )
   }
 
-  // Don't render anything if no user (will redirect)
   if (!user) {
+    // This should ideally not be reached if the useEffect redirect works correctly
     return null
   }
 
@@ -339,7 +336,7 @@ export default function DashboardPage() {
                 {reminders.length > 0 ? (
                   <div className="grid gap-4">
                     {reminders
-                      .filter((reminder) => reminder && reminder.title) // Extra safety check
+                      .filter((reminder) => reminder && reminder.title)
                       .map((reminder) => {
                         try {
                           return (
@@ -377,7 +374,7 @@ export default function DashboardPage() {
                           )
                         } catch (error) {
                           console.error("Error rendering reminder card:", error)
-                          return null // Render nothing if there's an error
+                          return null
                         }
                       })}
                   </div>
@@ -421,7 +418,7 @@ export default function DashboardPage() {
                 {microActions.length > 0 ? (
                   <div className="grid gap-4">
                     {microActions
-                      .filter((action) => action && action.title) // Extra safety check
+                      .filter((action) => action && action.title)
                       .map((action) => {
                         try {
                           return (
@@ -462,7 +459,7 @@ export default function DashboardPage() {
                           )
                         } catch (error) {
                           console.error("Error rendering micro-action card:", error)
-                          return null // Render nothing if there's an error
+                          return null
                         }
                       })}
                   </div>

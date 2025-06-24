@@ -1,16 +1,15 @@
 "use client"
 
-import type React from "react"
-
+import type React from "react" // Ensure React is imported if JSX is used directly
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+// import { useRouter } from "next/navigation" // Removed
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { useAuth } from "@/components/auth/auth-provider"
+import { useAuth } from "@/components/auth/auth-provider" // Ensure this path is correct
 import Link from "next/link"
 
 export default function RegisterPage() {
@@ -18,25 +17,26 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
-  const { signUp } = useAuth()
-  const router = useRouter()
+  // const [isLoading, setIsLoading] = useState(false) // isLoading is now from useAuth
+  // const [error, setError] = useState("") // error is now from useAuth
+  const { signUp, loading, error: authError } = useAuth() // Renamed error to authError
+  // const router = useRouter() // Removed
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    // setIsLoading(true) // Handled by useAuth
+    // setError("") // Handled by useAuth
 
     try {
       await signUp(email, password, firstName, lastName)
-      // Redirect after successful sign up
-      router.push("/dashboard")
+      // router.push("/dashboard") // Handled by AuthProvider
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed")
-    } finally {
-      setIsLoading(false)
+      // Error is set by AuthProvider
+      console.error("Register page submit error:", err)
     }
+    // finally { // Handled by useAuth
+    //   setIsLoading(false)
+    // }
   }
 
   return (
@@ -101,15 +101,15 @@ export default function RegisterPage() {
                 />
               </div>
 
-              {error && (
+              {authError && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{authError}</AlertDescription>
                 </Alert>
               )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Creating Account..." : "Create Account"}
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Creating Account..." : "Create Account"}
               </Button>
             </form>
 
