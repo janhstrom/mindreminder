@@ -30,7 +30,8 @@ export default function RegisterPage() {
 
     try {
       await signUp(email, password, firstName, lastName)
-      // Auth provider will handle redirect
+      // Redirect after successful sign up
+      router.push("/dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed")
     } finally {

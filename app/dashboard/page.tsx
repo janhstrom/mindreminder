@@ -11,6 +11,7 @@ import { CreateReminderModal } from "@/components/reminders/create-reminder-moda
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
 import { useAuth } from "@/components/auth/auth-provider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
 interface SafeReminder {
   id: string
@@ -47,19 +48,13 @@ export default function DashboardPage() {
   const [reminders, setReminders] = useState<SafeReminder[]>([])
   const [microActions, setMicroActions] = useState<SafeMicroAction[]>([])
   const [activeTab, setActiveTab] = useState("inspiration")
-  const [dataLoading, setDataLoading] = useState(true)
+  // Remove dataLoading state - not needed
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !user) {
       console.log("No user, redirecting to login")
       router.push("/login")
-      return
-    }
-
-    if (user) {
-      console.log("User authenticated:", user.firstName)
-      setDataLoading(false)
     }
   }, [user, loading, router])
 
@@ -190,13 +185,13 @@ export default function DashboardPage() {
     }
   }
 
-  // Show loading while auth is being determined
-  if (loading || dataLoading) {
+  // Show loading only while auth is being determined
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your dashboard...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     )
@@ -227,7 +222,7 @@ export default function DashboardPage() {
       <div className="flex">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <main className="flex-1 p-6">
+        <main className={cn("flex-1 p-6 transition-all duration-300", sidebarOpen && "md:ml-64")}>
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Welcome Section */}
             <div className="mb-8">

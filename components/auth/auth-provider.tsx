@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import { authService, type AuthUser } from "@/lib/auth-supabase"
+import { useRouter } from "next/navigation"
 
 interface AuthContextType {
   user: AuthUser | null
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     let mounted = true
@@ -65,8 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const user = await authService.signIn(email, password)
       setUser(user)
       setLoading(false)
-      // Use window.location for reliable redirect
-      window.location.href = "/dashboard"
+      // Use router instead of window.location for better React handling
+      router.push("/dashboard")
     } catch (error) {
       setLoading(false)
       console.error("Sign in error:", error)
