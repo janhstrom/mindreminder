@@ -12,82 +12,171 @@ import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-
 import { useAuth } from "@/components/auth/auth-provider"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+interface SafeReminder {
+  id: string
+  title: string
+  description?: string
+  scheduledTime?: string
+  isActive: boolean
+  completed: boolean
+  createdAt: string
+  userId?: string
+}
+
+interface SafeMicroAction {
+  id: string
+  title: string
+  description?: string
+  category: string
+  duration: string
+  frequency: string
+  isActive: boolean
+  currentStreak: number
+  bestStreak: number
+  completedToday: boolean
+  createdAt: string
+  userId?: string
+}
+
 export default function DashboardPage() {
   const { user, loading, signOut } = useAuth()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMicroActionModal, setShowMicroActionModal] = useState(false)
-  const [reminders, setReminders] = useState<any[]>([])
-  const [microActions, setMicroActions] = useState<any[]>([])
+  const [reminders, setReminders] = useState<SafeReminder[]>([])
+  const [microActions, setMicroActions] = useState<SafeMicroAction[]>([])
   const [activeTab, setActiveTab] = useState("inspiration")
+  const [dataLoading, setDataLoading] = useState(true)
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!loading && !user) {
+      console.log("No user, redirecting to login")
       router.push("/login")
+      return
+    }
+
+    if (user) {
+      console.log("User authenticated:", user.firstName)
+      setDataLoading(false)
     }
   }, [user, loading, router])
 
-  // Load data from localStorage for now
+  // Load data from localStorage safely
   useEffect(() => {
     if (user) {
-      const savedReminders = localStorage.getItem(`reminders_${user.id}`)
-      const savedMicroActions = localStorage.getItem(`microActions_${user.id}`)
+      try {
+        const savedReminders = localStorage.getItem(`reminders_${user.id}`)
+        const savedMicroActions = localStorage.getItem(`microActions_${user.id}`)
 
-      if (savedReminders) {
-        try {
-          setReminders(JSON.parse(savedReminders))
-        } catch (e) {
-          console.error("Error parsing reminders:", e)
-          setReminders([])
+        if (savedReminders) {
+          const parsed = JSON.parse(savedReminders)
+          // Filter out null/undefined items and ensure required properties
+          const safeReminders = (Array.isArray(parsed) ? parsed : [])
+            .filter((item) => item && typeof item === "object" && item.title)
+            .map((item) => ({
+              id: item.id || Date.now().toString(),
+              title: item.title || "Untitled",
+              description: item.description || undefined,
+              scheduledTime: item.scheduledTime || undefined,
+              isActive: Boolean(item.isActive),
+              completed: Boolean(item.completed),
+              createdAt: item.createdAt || new Date().toISOString(),
+              userId: user.id,
+            }))
+          setReminders(safeReminders)
         }
-      }
-      if (savedMicroActions) {
-        try {
-          setMicroActions(JSON.parse(savedMicroActions))
-        } catch (e) {
-          console.error("Error parsing micro actions:", e)
-          setMicroActions([])
+
+        if (savedMicroActions) {
+          const parsed = JSON.parse(savedMicroActions)
+          // Filter out null/undefined items and ensure required properties
+          const safeMicroActions = (Array.isArray(parsed) ? parsed : [])
+            .filter((item) => item && typeof item === "object" && item.title)
+            .map((item) => ({
+              id: item.id || Date.now().toString(),
+              title: item.title || "Untitled",
+              description: item.description || undefined,
+              category: item.category || "General",
+              duration: item.duration || "5 minutes",
+              frequency: item.frequency || "Daily",
+              isActive: Boolean(item.isActive),
+              currentStreak: Number(item.currentStreak) || 0,
+              bestStreak: Number(item.bestStreak) || 0,
+              completedToday: Boolean(item.completedToday),
+              createdAt: item.createdAt || new Date().toISOString(),
+              userId: user.id,
+            }))
+          setMicroActions(safeMicroActions)
         }
+      } catch (error) {
+        console.error("Error loading data:", error)
+        // Reset to empty arrays on error
+        setReminders([])
+        setMicroActions([])
       }
     }
   }, [user])
 
-  const handleReminderCreated = (reminder: any) => {
-    const newReminder = {
-      ...reminder,
-      id: Date.now().toString(),
-      userId: user?.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      completed: false,
+  const handleReminderCreated = (reminderData: any) => {
+    if (!user || !reminderData || !reminderData.title) {
+      console.error("Invalid reminder data or no user")
+      return
     }
+
+    const newReminder: SafeReminder = {
+      id: Date.now().toString(),
+      title: reminderData.title,
+      description: reminderData.description || undefined,
+      scheduledTime: reminderData.scheduledTime || undefined,
+      isActive: true,
+      completed: false,
+      createdAt: new Date().toISOString(),
+      userId: user.id,
+    }
+
     const newReminders = [...reminders, newReminder]
     setReminders(newReminders)
-    if (user) {
+
+    try {
       localStorage.setItem(`reminders_${user.id}`, JSON.stringify(newReminders))
+    } catch (error) {
+      console.error("Error saving reminders:", error)
     }
+
     setShowReminderModal(false)
   }
 
-  const handleMicroActionCreated = (microAction: any) => {
-    const newMicroAction = {
-      ...microAction,
+  const handleMicroActionCreated = (actionData: any) => {
+    if (!user || !actionData || !actionData.title) {
+      console.error("Invalid micro-action data or no user")
+      return
+    }
+
+    const newMicroAction: SafeMicroAction = {
       id: Date.now().toString(),
-      userId: user?.id,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      title: actionData.title,
+      description: actionData.description || undefined,
+      category: actionData.category || "General",
+      duration: actionData.duration || "5 minutes",
+      frequency: actionData.frequency || "Daily",
+      isActive: true,
       currentStreak: 0,
       bestStreak: 0,
-      totalCompletions: 0,
       completedToday: false,
+      createdAt: new Date().toISOString(),
+      userId: user.id,
     }
+
     const newMicroActions = [...microActions, newMicroAction]
     setMicroActions(newMicroActions)
-    if (user) {
+
+    try {
       localStorage.setItem(`microActions_${user.id}`, JSON.stringify(newMicroActions))
+    } catch (error) {
+      console.error("Error saving micro-actions:", error)
     }
+
     setShowMicroActionModal(false)
   }
 
@@ -96,29 +185,33 @@ export default function DashboardPage() {
       await signOut()
     } catch (error) {
       console.error("Logout error:", error)
+      // Force redirect even if logout fails
+      window.location.href = "/"
     }
   }
 
-  if (loading) {
+  // Show loading while auth is being determined
+  if (loading || dataLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Loading...</p>
+          <p className="text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
     )
   }
 
+  // Don't render anything if no user (will redirect)
   if (!user) {
-    return null // Will redirect
+    return null
   }
 
   const stats = {
-    activeReminders: reminders.length,
-    activeHabits: microActions.length,
-    bestStreak: Math.max(...microActions.map((m) => m.bestStreak || 0), 0),
-    completedToday: microActions.filter((m) => m.completedToday).length,
+    activeReminders: reminders.filter((r) => r && r.isActive).length,
+    activeHabits: microActions.filter((m) => m && m.isActive).length,
+    bestStreak: Math.max(...microActions.map((m) => m?.bestStreak || 0), 0),
+    completedToday: microActions.filter((m) => m && m.completedToday).length,
     totalHabits: microActions.length,
   }
 
@@ -138,7 +231,7 @@ export default function DashboardPage() {
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Welcome Section */}
             <div className="mb-8">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, {user.firstName}!</h1>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, {user.firstName || "there"}!</h1>
               <p className="text-muted-foreground">Ready to build some amazing habits today?</p>
             </div>
 
@@ -237,7 +330,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Your Reminders</h2>
-                    <p className="text-gray-600">{reminders.length} active reminders</p>
+                    <p className="text-gray-600">{stats.activeReminders} active reminders</p>
                   </div>
                   <Button
                     className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
@@ -250,30 +343,39 @@ export default function DashboardPage() {
 
                 {reminders.length > 0 ? (
                   <div className="grid gap-4">
-                    {reminders.map((reminder) => (
-                      <Card key={reminder.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 mb-1">{reminder.title}</h3>
-                              {reminder.description && (
-                                <p className="text-sm text-gray-600 mb-2">{reminder.description}</p>
-                              )}
-                              <div className="flex items-center gap-4 text-xs text-gray-500">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {new Date(reminder.createdAt).toLocaleDateString()}
+                    {reminders
+                      .filter((reminder) => reminder && reminder.title) // Extra safety check
+                      .map((reminder) => (
+                        <Card
+                          key={reminder.id}
+                          className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-gray-900 mb-1">{reminder.title}</h3>
+                                {reminder.description && (
+                                  <p className="text-sm text-gray-600 mb-2">{reminder.description}</p>
+                                )}
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {new Date(reminder.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-2 h-2 rounded-full ${reminder.isActive ? "bg-green-500" : "bg-gray-400"}`}
+                                ></div>
+                                <span className={`text-xs ${reminder.isActive ? "text-green-600" : "text-gray-500"}`}>
+                                  {reminder.isActive ? "Active" : "Inactive"}
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                              <span className="text-xs text-green-600">Active</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))}
                   </div>
                 ) : (
                   <Card className="bg-white shadow-lg border-0">
@@ -301,7 +403,7 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">Habit Builder</h2>
-                    <p className="text-gray-600">{microActions.length} active micro-actions</p>
+                    <p className="text-gray-600">{stats.activeHabits} active micro-actions</p>
                   </div>
                   <Button
                     className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
@@ -314,39 +416,41 @@ export default function DashboardPage() {
 
                 {microActions.length > 0 ? (
                   <div className="grid gap-4">
-                    {microActions.map((action) => (
-                      <Card key={action.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold text-gray-900">{action.title}</h3>
-                                <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
-                                  {action.category}
-                                </span>
+                    {microActions
+                      .filter((action) => action && action.title) // Extra safety check
+                      .map((action) => (
+                        <Card key={action.id} className="bg-white shadow-sm border-0 hover:shadow-md transition-shadow">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="font-semibold text-gray-900">{action.title}</h3>
+                                  <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full">
+                                    {action.category}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <span className="flex items-center gap-1">
+                                    <TrendingUp className="h-4 w-4" />
+                                    {action.currentStreak} day streak
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="h-4 w-4" />
+                                    {action.duration}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                <span className="flex items-center gap-1">
-                                  <TrendingUp className="h-4 w-4" />
-                                  {action.currentStreak} day streak
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  {action.duration}
-                                </span>
-                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                              >
+                                Mark Done
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-purple-200 text-purple-700 hover:bg-purple-50"
-                            >
-                              Mark Done
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      ))}
                   </div>
                 ) : (
                   <Card className="bg-white shadow-lg border-0">

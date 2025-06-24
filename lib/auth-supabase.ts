@@ -61,13 +61,25 @@ export class SupabaseAuthService {
   }
 
   async signIn(email: string, password: string): Promise<AuthUser> {
+    console.log("Attempting to sign in user:", email)
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
-    if (error) throw error
-    if (!data.user) throw new Error("No user returned")
+    console.log("Supabase signin response:", { data, error })
+
+    if (error) {
+      console.error("Signin error:", error)
+      throw error
+    }
+    if (!data.user) {
+      console.error("No user returned from signin")
+      throw new Error("No user returned")
+    }
+
+    console.log("User signed in successfully:", data.user)
 
     const profile = await this.getProfile(data.user.id)
     return this.mapUserToAuthUser(data.user, profile, true)
@@ -85,19 +97,33 @@ export class SupabaseAuthService {
   }
 
   async signOut(): Promise<void> {
+    console.log("Signing out user")
     const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    if (error) {
+      console.error("Signout error:", error)
+      throw error
+    }
+    console.log("User signed out successfully")
   }
 
   async getCurrentUser(): Promise<AuthUser | null> {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-    if (!user) return null
+      if (!user) {
+        console.log("No current user")
+        return null
+      }
 
-    const profile = await this.getProfile(user.id)
-    return this.mapUserToAuthUser(user, profile, true)
+      console.log("Current user found:", user.email)
+      const profile = await this.getProfile(user.id)
+      return this.mapUserToAuthUser(user, profile, true)
+    } catch (error) {
+      console.error("Error getting current user:", error)
+      return null
+    }
   }
 
   async updateProfile(updates: Partial<AuthUser>): Promise<AuthUser> {
@@ -132,22 +158,27 @@ export class SupabaseAuthService {
   }
 
   private async getProfile(userId: string): Promise<Profile | null> {
-    const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
+    try {
+      const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single()
 
-    if (error) {
-      console.error("Error fetching profile:", error)
+      if (error) {
+        console.error("Error fetching profile:", error)
+        return null
+      }
+
+      return data
+    } catch (error) {
+      console.error("Error in getProfile:", error)
       return null
     }
-
-    return data
   }
 
   private mapUserToAuthUser(user: User, profile: Partial<Profile> | null, emailConfirmed = true): AuthUser {
     return {
       id: user.id,
       email: user.email!,
-      firstName: profile?.first_name || "",
-      lastName: profile?.last_name || "",
+      firstName: profile?.first_name || user.user_metadata?.first_name || "",
+      lastName: profile?.last_name || user.user_metadata?.last_name || "",
       profileImage: profile?.profile_image || undefined,
       createdAt: new Date(user.created_at),
       emailConfirmed,
@@ -160,9 +191,14 @@ export class SupabaseAuthService {
       console.log("Auth state change:", event, session?.user?.id)
 
       if (session?.user) {
-        const profile = await this.getProfile(session.user.id)
-        const authUser = this.mapUserToAuthUser(session.user, profile, true)
-        callback(authUser)
+        try {
+          const profile = await this.getProfile(session.user.id)
+          const authUser = this.mapUserToAuthUser(session.user, profile, true)
+          callback(authUser)
+        } catch (error) {
+          console.error("Error in auth state change:", error)
+          callback(null)
+        }
       } else {
         callback(null)
       }

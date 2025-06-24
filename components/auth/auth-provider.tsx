@@ -1,9 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { createContext, useContext, useEffect, useState } from "react"
-import { SupabaseAuthService, type AuthUser } from "@/lib/auth-supabase"
+import { authService, type AuthUser } from "@/lib/auth-supabase"
 
 interface AuthContextType {
   user: AuthUser | null
@@ -11,7 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
   signOut: () => Promise<void>
-  signInWithGoogle: () => Promise<void>
+  logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -21,16 +20,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let mounted = true
+
     // Get initial user
     const getInitialUser = async () => {
       try {
-        const currentUser = await SupabaseAuthService.getInstance().getCurrentUser()
+        const currentUser = await authService.getCurrentUser()
         console.log("Initial user:", currentUser)
-        setUser(currentUser)
+        if (mounted) {
+          setUser(currentUser)
+          setLoading(false)
+        }
       } catch (error) {
         console.error("Error getting initial user:", error)
-      } finally {
-        setLoading(false)
+        if (mounted) {
+          setUser(null)
+          setLoading(false)
+        }
       }
     }
 
@@ -39,22 +45,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = SupabaseAuthService.getInstance().onAuthStateChange((user) => {
+    } = authService.onAuthStateChange((user) => {
       console.log("Auth state changed:", user)
-      setUser(user)
-      setLoading(false)
+      if (mounted) {
+        setUser(user)
+        setLoading(false)
+      }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
     try {
-      const user = await SupabaseAuthService.getInstance().signIn(email, password)
+      setLoading(true)
+      const user = await authService.signIn(email, password)
       setUser(user)
-      // Redirect to dashboard
+      setLoading(false)
+      // Use window.location for reliable redirect
       window.location.href = "/dashboard"
     } catch (error) {
+      setLoading(false)
       console.error("Sign in error:", error)
       throw error
     }
@@ -62,11 +76,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
-      const user = await SupabaseAuthService.getInstance().signUp(email, password, firstName, lastName)
+      setLoading(true)
+      const user = await authService.signUp(email, password, firstName, lastName)
       setUser(user)
-      // Redirect to dashboard
+      setLoading(false)
+      // Use window.location for reliable redirect
       window.location.href = "/dashboard"
     } catch (error) {
+      setLoading(false)
       console.error("Sign up error:", error)
       throw error
     }
@@ -74,9 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await SupabaseAuthService.getInstance().signOut()
+      await authService.signOut()
       setUser(null)
-      // Redirect to homepage
+      // Use window.location for reliable redirect
       window.location.href = "/"
     } catch (error) {
       console.error("Sign out error:", error)
@@ -84,19 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signInWithGoogle = async () => {
-    try {
-      await SupabaseAuthService.getInstance().signInWithGoogle()
-    } catch (error) {
-      console.error("Google sign in error:", error)
-      throw error
-    }
-  }
+  const logout = signOut // Alias for backward compatibility
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, signInWithGoogle }}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, logout }}>{children}</AuthContext.Provider>
   )
 }
 
