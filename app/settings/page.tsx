@@ -14,9 +14,24 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import type { AuthUser } from "@/lib/auth-supabase"
-import { UserPreferencesCard } from "@/components/settings/user-preferences" // Re-added
-import { NotificationSettings } from "@/components/notifications/notification-settings" // Re-added
-import { Bell, UserIcon } from "lucide-react" // Renamed User to UserIcon
+import { UserPreferencesCard } from "@/components/settings/user-preferences"
+import { NotificationSettings } from "@/components/notifications/notification-settings"
+import { Bell, UserIcon } from "lucide-react"
+
+// Helper to create a placeholder for a component that might be missing
+const SafeComponent = ({ Component, name }: { Component: React.ComponentType | undefined; name: string }) => {
+  if (!Component) {
+    console.warn(`Warning: The component "${name}" could not be loaded. It might be missing or have an export error.`)
+    return (
+      <div className="p-4 border border-dashed rounded-md">
+        <p className="text-sm text-muted-foreground">
+          The <strong>{name}</strong> component is currently unavailable.
+        </p>
+      </div>
+    )
+  }
+  return <Component />
+}
 
 export default function SettingsPage() {
   const { user, loading, signOut, updateProfile } = useAuth()
@@ -29,23 +44,15 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
-    } else if (user) {
+    if (!loading && user) {
       setFirstName(user.firstName || "")
       setLastName(user.lastName || "")
       setProfileImage(user.profileImage || "")
     }
-  }, [user, loading, router])
+  }, [user, loading])
 
   const handleLogout = async () => {
-    try {
-      await signOut()
-      // AuthProvider should handle redirect to "/" or "/login"
-    } catch (error) {
-      console.error("Logout error:", error)
-      toast({ title: "Logout Failed", description: "Could not log out. Please try again.", variant: "destructive" })
-    }
+    await signOut()
   }
 
   const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -81,9 +88,7 @@ export default function SettingsPage() {
       <Header
         user={user}
         onLogout={handleLogout}
-        onProfileClick={() => {
-          /* Already on profile */
-        }}
+        onProfileClick={() => {}}
         onMenuClick={() => setSidebarOpen(!sidebarOpen)}
       />
       <div className="flex">
@@ -117,7 +122,6 @@ export default function SettingsPage() {
                       />
                     </div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name</Label>
@@ -128,14 +132,6 @@ export default function SettingsPage() {
                       <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" value={user.email} disabled className="bg-muted/50" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="userId">User ID</Label>
-                    <Input id="userId" value={user.id} disabled className="bg-muted/50 text-xs" />
-                  </div>
                   <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
                     {isSaving ? "Saving..." : "Save Changes"}
                   </Button>
@@ -143,7 +139,7 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
-            <UserPreferencesCard />
+            <SafeComponent Component={UserPreferencesCard} name="UserPreferencesCard" />
 
             <Card>
               <CardHeader>
@@ -153,18 +149,7 @@ export default function SettingsPage() {
                 <CardDescription>Manage how you receive notifications.</CardDescription>
               </CardHeader>
               <CardContent>
-                <NotificationSettings />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Actions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button variant="destructive" onClick={handleLogout}>
-                  Log Out
-                </Button>
+                <SafeComponent Component={NotificationSettings} name="NotificationSettings" />
               </CardContent>
             </Card>
           </div>
