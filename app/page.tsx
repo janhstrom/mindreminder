@@ -3,10 +3,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/components/auth/auth-provider"
 import { Bell, Target, Heart, Brain, TrendingUp, CheckCircle, ArrowRight, Star, Users, Zap } from "lucide-react"
 
 export default function HomePage() {
   const router = useRouter()
+  const { user, loading } = useAuth()
+
+  // If user is already logged in, redirect to dashboard
+  if (!loading && user) {
+    router.push("/dashboard")
+    return null
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -25,11 +33,11 @@ export default function HomePage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" onClick={() => router.push("/")}>
+              <Button variant="ghost" onClick={() => router.push("/login")}>
                 Sign In
               </Button>
               <Button
-                onClick={() => router.push("/")}
+                onClick={() => router.push("/register")}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
               >
                 Get Started Free
