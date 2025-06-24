@@ -32,9 +32,7 @@ export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="flex h-16 items-center border-b px-6 shrink-0">
-          {/* Intentionally empty, was "Navigation" heading */}
-        </div>
+        <div className="flex h-16 items-center border-b px-6 shrink-0"></div>
         <ScrollArea className="flex-1 px-3 py-4">
           <nav className="space-y-1">
             {navigation.map((item) => {
