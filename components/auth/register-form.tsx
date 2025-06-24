@@ -10,66 +10,42 @@ import { useAuth } from "@/components/auth/auth-provider"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
-interface RegisterFormProps {
+interface LoginFormProps {
   onToggleMode: () => void
 }
 
-export function RegisterForm({ onToggleMode }: RegisterFormProps) {
+export function LoginForm({ onToggleMode }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
-  const { signUp, loading, error } = useAuth()
+  const { signIn, operationLoading, error } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (loading) return
+    if (operationLoading) return // Prevent multiple submissions
     try {
-      await signUp(email, password, firstName, lastName)
-      // AuthProvider will handle redirection
+      await signIn(email, password)
+      // AuthProvider will handle redirection on successful sign-in
     } catch (err) {
-      console.error("Registration form submission error:", err)
+      // Error is already set in AuthProvider, no need to set it here unless for specific form feedback
+      console.error("Login form submission error:", err)
     }
   }
 
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl text-center">Create Account</CardTitle>
+        <CardTitle className="text-2xl text-center">Welcome Back</CardTitle>
         <CardDescription className="text-center text-muted-foreground">
-          Join MindReMinder to start building better habits
+          Sign in to your MindReMinder account
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName-register">First Name</Label>
-              <Input
-                id="firstName-register"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-                placeholder="First name"
-                autoComplete="given-name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="lastName-register">Last Name</Label>
-              <Input
-                id="lastName-register"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                required
-                placeholder="Last name"
-                autoComplete="family-name"
-              />
-            </div>
-          </div>
           <div className="space-y-2">
-            <Label htmlFor="email-register">Email</Label>
+            <Label htmlFor="email-login">Email</Label>{" "}
+            {/* Changed htmlFor to avoid conflict if RegisterForm is on same page */}
             <Input
-              id="email-register"
+              id="email-login"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -79,16 +55,15 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password-register">Password</Label>
+            <Label htmlFor="password-login">Password</Label>
             <Input
-              id="password-register"
+              id="password-login"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="Create a password (min. 6 characters)"
-              minLength={6}
-              autoComplete="new-password"
+              placeholder="Enter your password"
+              autoComplete="current-password"
             />
           </div>
 
@@ -99,14 +74,14 @@ export function RegisterForm({ onToggleMode }: RegisterFormProps) {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating Account..." : "Create Account"}
+          <Button type="submit" className="w-full" disabled={operationLoading}>
+            {operationLoading ? "Signing In..." : "Sign In"}
           </Button>
         </form>
 
         <div className="mt-4 text-center">
-          <Button variant="link" onClick={onToggleMode} disabled={loading}>
-            Already have an account? Sign in
+          <Button variant="link" onClick={onToggleMode} disabled={operationLoading}>
+            Don't have an account? Sign up
           </Button>
         </div>
       </CardContent>

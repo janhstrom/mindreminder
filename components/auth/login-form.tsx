@@ -17,11 +17,11 @@ interface LoginFormProps {
 export function LoginForm({ onToggleMode }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const { signIn, loading, error } = useAuth()
+  const { signIn, operationLoading, error } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (loading) return // Prevent multiple submissions
+    if (operationLoading) return // Prevent multiple submissions
     try {
       await signIn(email, password)
       // AuthProvider will handle redirection on successful sign-in
@@ -74,13 +74,13 @@ export function LoginForm({ onToggleMode }: LoginFormProps) {
             </Alert>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing In..." : "Sign In"}
+          <Button type="submit" className="w-full" disabled={operationLoading}>
+            {operationLoading ? "Signing In..." : "Sign In"}
           </Button>
         </form>
 
         <div className="mt-4 text-center">
-          <Button variant="link" onClick={onToggleMode} disabled={loading}>
+          <Button variant="link" onClick={onToggleMode} disabled={operationLoading}>
             Don't have an account? Sign up
           </Button>
         </div>

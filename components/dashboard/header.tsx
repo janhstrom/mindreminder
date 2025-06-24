@@ -18,7 +18,7 @@ interface HeaderProps {
 
 export function Header({ user, onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme()
-  const { signOut, loading: authLoading } = useAuth() // Get signOut and loading state
+  const { signOut, operationLoading } = useAuth() // Get signOut and loading state
   const router = useRouter()
 
   const handleLogout = async () => {
@@ -74,9 +74,9 @@ export function Header({ user, onMenuClick }: HeaderProps) {
                 <User className="mr-2 h-4 w-4" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleLogout} disabled={authLoading}>
+              <DropdownMenuItem onClick={handleLogout} disabled={operationLoading}>
                 <LogOut className="mr-2 h-4 w-4" />
-                {authLoading ? "Logging out..." : "Log out"}
+                {operationLoading ? "Logging out..." : "Log out"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

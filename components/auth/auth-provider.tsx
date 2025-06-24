@@ -7,11 +7,12 @@ import { useRouter, usePathname } from "next/navigation"
 
 interface AuthContextType {
   user: AuthUser | null
-  loading: boolean
+  loading: boolean // General loading for initial auth state detection
+  operationLoading: boolean // Specific loading for signIn, signUp, signOut operations
   error: Error | null
-  signUp: typeof authService.signUp
-  signIn: typeof authService.signIn
-  signInWithGoogle: typeof authService.signInWithGoogle
+  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<void>
+  signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   updateProfile: typeof authService.updateProfile
 }
@@ -21,63 +22,120 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const [operationLoading, setOperationLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const router = useRouter()
   const pathname = usePathname()
 
-  const handleSignOut = useCallback(async () => {
-    try {
-      await authService.signOut()
-      // The onAuthStateChange listener will handle setting user to null and redirecting.
-    } catch (err) {
-      console.error("SignOut Error in AuthProvider:", err)
-      setError(err instanceof Error ? err : new Error("Sign out failed"))
-    }
-  }, [])
-
   useEffect(() => {
-    // Initial check for user on mount
+    setLoading(true)
     authService
       .getCurrentUser()
       .then((currentUser) => {
         setUser(currentUser)
+        console.log("AuthProvider: Current user found on mount:", currentUser?.email)
+      })
+      .catch((err) => {
+        console.error("AuthProvider: Error getting current user on mount:", err)
       })
       .finally(() => {
         setLoading(false)
       })
 
-    // Set up the auth state change listener
     const {
       data: { subscription },
-    } = authService.onAuthStateChange((authUser) => {
+    } = authService.onAuthStateChange((event, session) => {
+      const authUser = session?.user as AuthUser | null
+      console.log(`AuthProvider: Auth state change: ${event}, User: ${authUser?.id}, Path: ${pathname}`)
       setUser(authUser)
-      setLoading(false) // Stop loading once we have auth state
+      setLoading(false)
 
       const isAuthPage = pathname === "/login" || pathname === "/register"
       const isPublicPage = isAuthPage || pathname === "/"
 
-      if (authUser && isAuthPage) {
-        // If user is logged in and on an auth page, redirect to dashboard
+      if (event === "SIGNED_IN" && isAuthPage) {
         router.push("/dashboard")
-      } else if (!authUser && !isPublicPage) {
-        // If user is not logged in and not on a public page, redirect to login
+      } else if (event === "SIGNED_OUT" && !isPublicPage) {
         router.push("/login")
+      } else if (authUser && isAuthPage) {
+        // If user is somehow already logged in and on auth page
+        router.push("/dashboard")
       }
     })
 
-    // Cleanup function to unsubscribe from the listener
     return () => {
       subscription?.unsubscribe()
     }
   }, [pathname, router])
 
+  const handleSignIn = useCallback(async (email: string, password: string) => {
+    setOperationLoading(true)
+    setError(null)
+    try {
+      await authService.signIn(email, password)
+    } catch (err: any) {
+      console.error("AuthProvider: SignIn error", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Sign-in failed"))
+      throw err
+    } finally {
+      setOperationLoading(false)
+    }
+  }, [])
+
+  const handleSignUp = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
+    setOperationLoading(true)
+    setError(null)
+    try {
+      await authService.signUp(email, password, firstName, lastName)
+    } catch (err: any) {
+      console.error("AuthProvider: SignUp error", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Sign-up failed"))
+      throw err
+    } finally {
+      setOperationLoading(false)
+    }
+  }, [])
+
+  const handleSignInWithGoogle = useCallback(async () => {
+    setOperationLoading(true)
+    setError(null)
+    try {
+      await authService.signInWithGoogle()
+    } catch (err: any) {
+      console.error("AuthProvider: Google SignIn error", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Google Sign-in failed"))
+      throw err
+    } finally {
+      setOperationLoading(false)
+    }
+  }, [])
+
+  const handleSignOut = useCallback(async () => {
+    console.log("AuthProvider: Attempting sign out...")
+    setOperationLoading(true)
+    setError(null)
+    try {
+      await authService.signOut()
+      console.log("AuthProvider: authService.signOut completed.")
+      // onAuthStateChange will set user to null and handle redirect.
+    } catch (err: any) {
+      console.error("AuthProvider: SignOut error", err)
+      setError(err instanceof Error ? err : new Error(err.message || "Sign out failed"))
+      throw err // Re-throw to allow UI to potentially handle it
+    } finally {
+      setOperationLoading(false)
+      console.log("AuthProvider: Sign out operation finished (finally block).")
+    }
+  }, [])
+
   const contextValue: AuthContextType = {
     user,
     loading,
+    operationLoading,
     error,
-    signUp: authService.signUp,
-    signIn: authService.signIn,
-    signInWithGoogle: authService.signInWithGoogle,
+    signIn: handleSignIn,
+    signUp: handleSignUp,
+    signInWithGoogle: handleSignInWithGoogle,
     signOut: handleSignOut,
     updateProfile: authService.updateProfile,
   }
