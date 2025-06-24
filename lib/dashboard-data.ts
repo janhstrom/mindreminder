@@ -31,26 +31,44 @@ export interface SimpleMicroAction {
 // Simple user management for demo purposes
 export class UserService {
   static async ensureDemoUser(): Promise<string> {
-    const demoUserId = "demo-user-123"
+    // Use a proper UUID format for demo user
+    const demoUserId = "550e8400-e29b-41d4-a716-446655440000"
 
-    // Check if demo user exists in profiles table
-    const { data: existingUser } = await supabase.from("profiles").select("id").eq("id", demoUserId).single()
+    try {
+      // Check if demo user exists in profiles table
+      const { data: existingUser, error: checkError } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", demoUserId)
+        .single()
 
-    if (!existingUser) {
-      // Create demo user profile
-      const { error } = await supabase.from("profiles").insert({
-        id: demoUserId,
-        email: "demo@mindreminder.com",
-        first_name: "Demo",
-        last_name: "User",
-      })
-
-      if (error) {
-        console.error("Error creating demo user:", error)
+      if (checkError && checkError.code !== "PGRST116") {
+        // PGRST116 is "not found" error, which is expected
+        console.error("Error checking for demo user:", checkError)
       }
-    }
 
-    return demoUserId
+      if (!existingUser) {
+        // Create demo user profile
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: demoUserId,
+          email: "demo@mindreminder.com",
+          first_name: "Demo",
+          last_name: "User",
+        })
+
+        if (insertError) {
+          console.error("Error creating demo user:", insertError)
+          // Continue anyway, maybe the user exists but we couldn't find it
+        } else {
+          console.log("✅ Demo user created successfully")
+        }
+      }
+
+      return demoUserId
+    } catch (error) {
+      console.error("Error in ensureDemoUser:", error)
+      return demoUserId // Return the ID anyway
+    }
   }
 }
 
@@ -60,34 +78,50 @@ export class DashboardDataService {
       const actualUserId = userId || (await UserService.ensureDemoUser())
 
       // Get reminders count
-      const { count: remindersCount } = await supabase
+      const { count: remindersCount, error: remindersError } = await supabase
         .from("reminders")
         .select("*", { count: "exact", head: true })
         .eq("user_id", actualUserId)
         .eq("is_active", true)
 
+      if (remindersError) {
+        console.error("Error counting reminders:", remindersError)
+      }
+
       // Get micro-actions count
-      const { count: habitsCount } = await supabase
+      const { count: habitsCount, error: habitsError } = await supabase
         .from("micro_actions")
         .select("*", { count: "exact", head: true })
         .eq("user_id", actualUserId)
         .eq("is_active", true)
 
+      if (habitsError) {
+        console.error("Error counting habits:", habitsError)
+      }
+
       // Get best streak
-      const { data: bestStreakData } = await supabase
+      const { data: bestStreakData, error: streakError } = await supabase
         .from("micro_actions")
         .select("best_streak")
         .eq("user_id", actualUserId)
         .order("best_streak", { ascending: false })
         .limit(1)
 
+      if (streakError) {
+        console.error("Error getting best streak:", streakError)
+      }
+
       // Get today's completions
       const today = new Date().toISOString().split("T")[0]
-      const { count: completedTodayCount } = await supabase
+      const { count: completedTodayCount, error: completionsError } = await supabase
         .from("micro_action_completions")
         .select("*", { count: "exact", head: true })
         .eq("user_id", actualUserId)
         .eq("completion_date", today)
+
+      if (completionsError) {
+        console.error("Error counting completions:", completionsError)
+      }
 
       return {
         activeReminders: remindersCount || 0,
@@ -120,7 +154,10 @@ export class DashboardDataService {
         .order("created_at", { ascending: false })
         .limit(10)
 
-      if (error) throw error
+      if (error) {
+        console.error("Error fetching reminders:", error)
+        return []
+      }
 
       return (data || []).map((item) => ({
         id: item.id,
@@ -148,15 +185,22 @@ export class DashboardDataService {
         .order("created_at", { ascending: false })
         .limit(10)
 
-      if (error) throw error
+      if (error) {
+        console.error("Error fetching micro-actions:", error)
+        return []
+      }
 
       // Check today's completions
       const today = new Date().toISOString().split("T")[0]
-      const { data: completions } = await supabase
+      const { data: completions, error: completionsError } = await supabase
         .from("micro_action_completions")
         .select("micro_action_id")
         .eq("user_id", actualUserId)
         .eq("completion_date", today)
+
+      if (completionsError) {
+        console.error("Error fetching completions:", completionsError)
+      }
 
       const completedToday = new Set(completions?.map((c) => c.micro_action_id) || [])
 
@@ -183,26 +227,52 @@ export class DashboardDataService {
     isActive: boolean
   }): Promise<SimpleReminder> {
     try {
-      const userId = await UserService.ensureDemoUser()
+      console.log("🔄 Creating reminder with data:", reminderData)
 
-      const { data, error } = await supabase
-        .from("reminders")
-        .insert({
-          user_id: userId,
-          title: reminderData.title,
-          description: reminderData.description || null,
-          scheduled_time: reminderData.scheduledTime || null,
-          location: reminderData.location || null,
-          image: reminderData.image || null,
-          is_active: reminderData.isActive,
-        })
-        .select()
-        .single()
+      const userId = await UserService.ensureDemoUser()
+      console.log("👤 Using user ID:", userId)
+
+      // Test database connection first
+      const { data: testData, error: testError } = await supabase.from("reminders").select("count").limit(1)
+
+      if (testError) {
+        console.error("❌ Database connection test failed:", testError)
+        throw new Error(`Database connection failed: ${testError.message}`)
+      }
+
+      console.log("✅ Database connection test passed")
+
+      const insertData = {
+        user_id: userId,
+        title: reminderData.title,
+        description: reminderData.description || null,
+        scheduled_time: reminderData.scheduledTime || null,
+        location: reminderData.location || null,
+        image: reminderData.image || null,
+        is_active: reminderData.isActive,
+      }
+
+      console.log("📝 Inserting data:", insertData)
+
+      const { data, error } = await supabase.from("reminders").insert(insertData).select().single()
 
       if (error) {
-        console.error("Supabase error:", error)
-        throw error
+        console.error("❌ Supabase insert error:", error)
+        console.error("Error details:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
+        throw new Error(`Failed to create reminder: ${error.message}`)
       }
+
+      if (!data) {
+        console.error("❌ No data returned from insert")
+        throw new Error("No data returned from database")
+      }
+
+      console.log("✅ Reminder created successfully:", data)
 
       return {
         id: data.id,
@@ -213,7 +283,7 @@ export class DashboardDataService {
         createdAt: data.created_at,
       }
     } catch (error) {
-      console.error("Error creating reminder:", error)
+      console.error("💥 Error creating reminder:", error)
       throw error
     }
   }
@@ -229,28 +299,54 @@ export class DashboardDataService {
     isActive: boolean
   }): Promise<SimpleMicroAction> {
     try {
-      const userId = await UserService.ensureDemoUser()
+      console.log("🔄 Creating micro-action with data:", microActionData)
 
-      const { data, error } = await supabase
-        .from("micro_actions")
-        .insert({
-          user_id: userId,
-          title: microActionData.title,
-          description: microActionData.description || null,
-          category: microActionData.category,
-          duration: microActionData.duration,
-          frequency: microActionData.frequency,
-          time_of_day: microActionData.timeOfDay || null,
-          habit_stack: microActionData.habitStack || null,
-          is_active: microActionData.isActive,
-        })
-        .select()
-        .single()
+      const userId = await UserService.ensureDemoUser()
+      console.log("👤 Using user ID:", userId)
+
+      // Test database connection first
+      const { data: testData, error: testError } = await supabase.from("micro_actions").select("count").limit(1)
+
+      if (testError) {
+        console.error("❌ Database connection test failed:", testError)
+        throw new Error(`Database connection failed: ${testError.message}`)
+      }
+
+      console.log("✅ Database connection test passed")
+
+      const insertData = {
+        user_id: userId,
+        title: microActionData.title,
+        description: microActionData.description || null,
+        category: microActionData.category,
+        duration: microActionData.duration,
+        frequency: microActionData.frequency,
+        time_of_day: microActionData.timeOfDay || null,
+        habit_stack: microActionData.habitStack || null,
+        is_active: microActionData.isActive,
+      }
+
+      console.log("📝 Inserting data:", insertData)
+
+      const { data, error } = await supabase.from("micro_actions").insert(insertData).select().single()
 
       if (error) {
-        console.error("Supabase error:", error)
-        throw error
+        console.error("❌ Supabase insert error:", error)
+        console.error("Error details:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+        })
+        throw new Error(`Failed to create micro-action: ${error.message}`)
       }
+
+      if (!data) {
+        console.error("❌ No data returned from insert")
+        throw new Error("No data returned from database")
+      }
+
+      console.log("✅ Micro-action created successfully:", data)
 
       return {
         id: data.id,
@@ -261,7 +357,7 @@ export class DashboardDataService {
         isActive: data.is_active,
       }
     } catch (error) {
-      console.error("Error creating micro-action:", error)
+      console.error("💥 Error creating micro-action:", error)
       throw error
     }
   }
