@@ -35,6 +35,8 @@ export function TimeInput({ value, onChange, className, id }: TimeInputProps) {
     if (value) {
       try {
         const [h, m] = value.split(":").map(Number)
+        if (isNaN(h) || isNaN(m)) return
+
         setHours(h.toString().padStart(2, "0"))
         setMinutes(m.toString().padStart(2, "0"))
 
@@ -47,6 +49,10 @@ export function TimeInput({ value, onChange, className, id }: TimeInputProps) {
         }
       } catch (error) {
         console.error("Error parsing time value:", error)
+        // Set default values
+        setHours("09")
+        setMinutes("00")
+        setPeriod("AM")
       }
     }
   }, [value, timeFormat])
@@ -72,12 +78,28 @@ export function TimeInput({ value, onChange, className, id }: TimeInputProps) {
 
   // 12-hour format with custom controls
   return (
-    <div className={`flex gap-2 ${className}`}>
+    <div className={`flex gap-2 items-center ${className}`}>
       <Select
-        value={hours}
+        value={
+          timeFormat === "12h"
+            ? Number.parseInt(hours) > 12
+              ? (Number.parseInt(hours) - 12).toString().padStart(2, "0")
+              : hours === "00"
+                ? "12"
+                : hours
+            : hours
+        }
         onValueChange={(newHours) => {
-          setHours(newHours)
-          handleTimeChange(newHours, minutes, period)
+          const actualHours =
+            timeFormat === "12h"
+              ? period === "PM" && newHours !== "12"
+                ? (Number.parseInt(newHours) + 12).toString()
+                : period === "AM" && newHours === "12"
+                  ? "00"
+                  : newHours
+              : newHours
+          setHours(actualHours.padStart(2, "0"))
+          handleTimeChange(actualHours, minutes, period)
         }}
       >
         <SelectTrigger className="w-20">

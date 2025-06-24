@@ -9,8 +9,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Calendar, Clock, MapPin, ImageIcon, Bell } from "lucide-react"
+import { Calendar, Clock, MapPin, ImageIcon, Bell, AlertCircle } from "lucide-react"
 import { DashboardDataService } from "@/lib/dashboard-data"
+import { TimeInput } from "@/components/ui/time-input"
 
 interface CreateReminderModalProps {
   open: boolean
@@ -26,13 +27,18 @@ export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: C
   const [image, setImage] = useState("")
   const [isActive, setIsActive] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
 
     setIsSubmitting(true)
+    setError(null)
+
     try {
+      console.log("🚀 Starting reminder creation...")
+
       await DashboardDataService.createReminder({
         title: title.trim(),
         description: description.trim() || undefined,
@@ -41,6 +47,8 @@ export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: C
         image: image.trim() || undefined,
         isActive,
       })
+
+      console.log("✅ Reminder created successfully!")
 
       // Reset form
       setTitle("")
@@ -53,9 +61,9 @@ export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: C
       // Close modal and refresh data
       onOpenChange(false)
       onReminderCreated()
-    } catch (error) {
-      console.error("Error creating reminder:", error)
-      alert("Failed to create reminder. Please try again.")
+    } catch (error: any) {
+      console.error("❌ Error in handleSubmit:", error)
+      setError(error.message || "Failed to create reminder. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
@@ -70,6 +78,19 @@ export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: C
             Create New Reminder
           </DialogTitle>
         </DialogHeader>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start space-x-3">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-red-900">Error Creating Reminder</h3>
+                <p className="text-red-800 text-sm mt-1">{error}</p>
+                <p className="text-red-700 text-xs mt-2">Check the browser console (F12) for more details.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Title */}
@@ -102,12 +123,23 @@ export function CreateReminderModal({ open, onOpenChange, onReminderCreated }: C
               <Clock className="h-4 w-4" />
               Scheduled Time
             </Label>
-            <Input
-              id="scheduledTime"
-              type="datetime-local"
-              value={scheduledTime}
-              onChange={(e) => setScheduledTime(e.target.value)}
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                type="date"
+                value={scheduledTime ? scheduledTime.split("T")[0] : ""}
+                onChange={(e) => {
+                  const timeValue = scheduledTime ? scheduledTime.split("T")[1] : "09:00"
+                  setScheduledTime(e.target.value ? `${e.target.value}T${timeValue}` : "")
+                }}
+              />
+              <TimeInput
+                value={scheduledTime ? scheduledTime.split("T")[1] || "09:00" : "09:00"}
+                onChange={(timeValue) => {
+                  const dateValue = scheduledTime ? scheduledTime.split("T")[0] : new Date().toISOString().split("T")[0]
+                  setScheduledTime(`${dateValue}T${timeValue}`)
+                }}
+              />
+            </div>
           </div>
 
           {/* Location */}
