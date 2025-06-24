@@ -11,7 +11,6 @@ import { CreateReminderModal } from "@/components/reminders/create-reminder-moda
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
 import { useAuth } from "@/components/auth/auth-provider" // Ensure this path is correct
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation" // Keep for onProfileClick
 
 interface SafeReminder {
@@ -217,9 +216,9 @@ export default function DashboardPage() {
       />
 
       <div className="flex">
-        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        <main className={cn("flex-1 p-6 transition-all duration-300", sidebarOpen && "md:ml-64")}>
+        <main className="flex-1 p-6">
           <div className="max-w-7xl mx-auto space-y-6">
             {/* Welcome Section */}
             <div className="mb-8">

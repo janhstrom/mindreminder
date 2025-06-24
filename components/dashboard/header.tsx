@@ -32,8 +32,10 @@ export function Header({ user, onLogout, onProfileClick, onMenuClick }: HeaderPr
         </div>
 
         <div className="ml-auto flex items-center space-x-4">
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => console.log("Notification bell clicked!")}>
             <Bell className="h-5 w-5" />
+            {/* Add sr-only text for accessibility if there are notifications */}
+            {/* e.g., <span className="sr-only">View notifications</span> */}
           </Button>
 
           <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>

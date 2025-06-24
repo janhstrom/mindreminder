@@ -5,36 +5,26 @@ import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Home, Plus, Quote, Settings, Users, BarChart3, HelpCircle } from "lucide-react"
+import { Home, Settings, Users, BarChart3, HelpCircle } from "lucide-react"
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home, id: "dashboard" },
-  { name: "Add Reminder", href: "/dashboard/reminders/new", icon: Plus, id: "reminders" },
-  { name: "Quotes", href: "/dashboard/quotes", icon: Quote, id: "quotes" },
-  { name: "Friends", href: "/dashboard/friends", icon: Users, id: "friends" },
-  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3, id: "analytics" },
+  { name: "Dashboard", href: "/dashboard", icon: Home, id: "dashboard-main" }, // Differentiate from internal tabs
+  // Add Reminder and Quotes are typically modals or sections within dashboard, not full pages from sidebar
+  // { name: "Add Reminder", href: "/dashboard/reminders/new", icon: Plus, id: "reminders" },
+  // { name: "Quotes", href: "/dashboard/quotes", icon: Quote, id: "quotes" },
+  { name: "Friends", href: "/dashboard/friends", icon: Users, id: "friends" }, // Assuming this is a page
+  { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3, id: "analytics" }, // Assuming this is a page
   { name: "Settings", href: "/settings", icon: Settings, id: "settings" },
   { name: "Help", href: "/help", icon: HelpCircle, id: "help" },
 ]
 
 interface SidebarProps {
-  activeTab?: string
-  onTabChange?: (tab: string) => void
   isOpen?: boolean
   onClose?: () => void
 }
 
-export function Sidebar({ activeTab = "dashboard", onTabChange, isOpen = true, onClose }: SidebarProps) {
+export function Sidebar({ isOpen = true, onClose }: SidebarProps) {
   const pathname = usePathname()
-
-  const handleTabClick = (tabId: string) => {
-    if (onTabChange) {
-      onTabChange(tabId)
-    }
-    if (onClose) {
-      onClose()
-    }
-  }
 
   return (
     <>
@@ -43,7 +33,7 @@ export function Sidebar({ activeTab = "dashboard", onTabChange, isOpen = true, o
 
       <div
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-background border-r transition-transform duration-300 ease-in-out md:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex h-full w-64 flex-col border-r bg-background transition-transform duration-300 ease-in-out md:static md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -60,17 +50,23 @@ export function Sidebar({ activeTab = "dashboard", onTabChange, isOpen = true, o
           <ScrollArea className="flex-1 px-3 py-4">
             <nav className="space-y-2">
               {navigation.map((item) => {
-                const isActive = activeTab === item.id
+                const isActive =
+                  pathname === item.href ||
+                  (item.href === "/dashboard" &&
+                    pathname.startsWith("/dashboard") &&
+                    !navigation.slice(1).some((nav) => pathname.startsWith(nav.href) && nav.href !== "/dashboard"))
                 return (
-                  <Button
-                    key={item.name}
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={cn("w-full justify-start", isActive && "bg-secondary")}
-                    onClick={() => handleTabClick(item.id)}
-                  >
-                    <item.icon className="mr-2 h-4 w-4" />
-                    {item.name}
-                  </Button>
+                  <Link key={item.name} href={item.href} passHref legacyBehavior>
+                    <Button
+                      as="a"
+                      variant={isActive ? "secondary" : "ghost"}
+                      className={cn("w-full justify-start")}
+                      onClick={onClose} // Just close the mobile menu on click
+                    >
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {item.name}
+                    </Button>
+                  </Link>
                 )
               })}
             </nav>
