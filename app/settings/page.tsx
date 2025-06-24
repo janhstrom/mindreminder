@@ -13,42 +13,42 @@ import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
 import { UserPreferencesCard } from "@/components/settings/user-preferences"
 import { NotificationSettings } from "@/components/notifications/notification-settings"
 import { cn } from "@/lib/utils"
-import { Loader2 } from 'lucide-react'
+import { Loader2 } from "lucide-react"
 
-export default function SettingsPage() \{
-  const \{ user, loading: authLoading \} = useAuth()
+export default function SettingsPage() {
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
-  const \{ toast \} = useToast()
+  const { toast } = useToast()
 
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [initialSettings, setInitialSettings] = useState<UserSettings | null>(null)
 
-  useEffect(() => \{
-    if (!authLoading && !user) \{
+  useEffect(() => {
+    if (!authLoading && !user) {
       router.push("/login")
-    \}
-  \}, [user, authLoading, router])
+    }
+  }, [user, authLoading, router])
 
-  useEffect(() => \{
-    if (user) \{
+  useEffect(() => {
+    if (user) {
       SettingsService.getSettings(user.id)
-        .then((fetchedSettings) => \{
+        .then((fetchedSettings) => {
           setSettings(fetchedSettings)
           setInitialSettings(fetchedSettings)
-        \})
-        .catch((error) => \{
+        })
+        .catch((error) => {
           console.error("Error fetching settings in page useEffect:", error)
-          toast(\{
+          toast({
             title: "Error Loading Settings",
             description: "Could not load your settings. Please try again later.",
             variant: "destructive",
-          \})
+          })
           // Fallback to default structure if service fails catastrophically,
           // though SettingsService itself has a fallback.
           // This ensures 'settings' is not null to avoid infinite loader if service's fallback fails.
-          const defaultFallback: UserSettings = \{
+          const defaultFallback: UserSettings = {
             pushEnabled: true,
             emailEnabled: false,
             soundEnabled: true,
@@ -68,95 +68,95 @@ export default function SettingsPage() \{
             weekStartsOn: "monday",
             dateFormat: "MM/dd/yyyy",
             timeFormat: "12h",
-          \}
+          }
           setSettings(defaultFallback)
           setInitialSettings(defaultFallback)
-        \})
-    \}
-  \}, [user, toast])
+        })
+    }
+  }, [user, toast])
 
-  const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => \{
+  const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => {
     // Ensure not to add profileImage here if it's not part of UserSettings type
-    const \{ profileImage, ...restOfSettings \} = newSettings as any // temp cast to handle if profileImage was passed
-    setSettings((prev) => (prev ? \{ ...prev, ...restOfSettings \} : null))
-  \}, [])
+    const { profileImage, ...restOfSettings } = newSettings as any // temp cast to handle if profileImage was passed
+    setSettings((prev) => (prev ? { ...prev, ...restOfSettings } : null))
+  }, [])
 
-  const handleSave = async () => \{
+  const handleSave = async () => {
     if (!settings || !user) return
     setIsSaving(true)
-    try \{
+    try {
       await SettingsService.saveSettings(settings, user.id)
       setInitialSettings(settings)
-      toast(\{
+      toast({
         title: "Success!",
         description: "Your settings have been saved.",
-      \})
-    \} catch (error) \{
+      })
+    } catch (error) {
       console.error("Failed to save settings:", error)
-      toast(\{
+      toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
         variant: "destructive",
-      \})
-    \} finally \{
+      })
+    } finally {
       setIsSaving(false)
-    \}
-  \}
+    }
+  }
 
-  const handleReset = () => \{
+  const handleReset = () => {
     setSettings(initialSettings)
-  \}
+  }
 
-  if (authLoading || !settings) \{
+  if (authLoading || !settings) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
-  \}
+  }
 
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(initialSettings)
 
   return (
     <div className="min-h-screen bg-background">
-      <Header user=\{user!\} onMenuClick=\{() => setSidebarOpen(!sidebarOpen)\} />
+      <Header user={user!} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex">
-        <Sidebar isOpen=\{sidebarOpen\} onClose=\{() => setSidebarOpen(false)\} />
-        <main className=\{cn("flex-1 p-4 md:p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")\}>
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className={cn("flex-1 p-4 md:p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
           <div className="max-w-4xl mx-auto space-y-8">
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-3xl font-bold">Settings</h1>
                 <p className="text-muted-foreground">Manage your account and preferences.</p>
               </div>
-              \{hasChanges && (
+              {hasChanges && (
                 <div className="flex gap-2">
-                  <Button variant="outline" onClick=\{handleReset\} disabled=\{isSaving\}>
+                  <Button variant="outline" onClick={handleReset} disabled={isSaving}>
                     Cancel
                   </Button>
-                  <Button onClick=\{handleSave\} disabled=\{isSaving\}>
-                    \{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null\}
+                  <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     Save Changes
                   </Button>
                 </div>
-              )\}
+              )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1 space-y-8">
-                \{/* <ProfileImageUpload
-                  userName=\{`$\{settings.firstName\} $\{settings.lastName\}`\}
-                  currentImage=\{user?.profileImage\}
-                  onImageChange=\{(imageUrl) => handleSettingsChange(\{ profileImage: imageUrl \})\}
-                /> */\}
+                {/* <ProfileImageUpload
+                  userName={`${settings.firstName} ${settings.lastName}`}
+                  currentImage={user?.profileImage}
+                  onImageChange={(imageUrl) => handleSettingsChange({ profileImage: imageUrl })}
+                /> */}
                 <p className="text-sm text-muted-foreground p-4 border rounded-md">
                   Profile image upload temporarily disabled for debugging.
                 </p>
               </div>
               <div className="lg:col-span-2 space-y-8">
-                <ProfileDetailsForm settings=\{settings\} onSettingsChange=\{handleSettingsChange\} />
+                <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
                 <UserPreferencesCard />
-                <NotificationSettings settings=\{settings\} onSettingsChange=\{handleSettingsChange\} />
+                <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} />
               </div>
             </div>
           </div>
@@ -164,4 +164,4 @@ export default function SettingsPage() \{
       </div>
     </div>
   )
-\}
+}
