@@ -1,60 +1,45 @@
 import { cookies } from "next/headers"
-import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import { SettingsService, type UserSettings } from "@/lib/settings-service"
 import SettingsClientContent from "@/components/settings/settings-client-content"
-import type { User } from "@supabase/supabase-js"
-
-// Helper function to create a default settings object
-const getDefaultSettings = (user: User): UserSettings => ({
-  pushEnabled: true,
-  emailEnabled: false,
-  soundEnabled: true,
-  vibrationEnabled: true,
-  quietHours: false,
-  quietStart: "22:00",
-  quietEnd: "08:00",
-  firstName: (user.user_metadata?.firstName as string) || "",
-  lastName: (user.user_metadata?.lastName as string) || "",
-  email: user.email || "",
-  timezone: "UTC",
-  bio: "",
-  theme: "system",
-  language: "en",
-  reminderStyle: "gentle",
-  defaultReminderTime: "09:00",
-  weekStartsOn: "monday",
-  dateFormat: "MM/dd/yyyy",
-  timeFormat: "12h",
-})
 
 export default async function SettingsPage() {
   const cookieStore = cookies()
   const supabase = createClient(cookieStore)
 
-  const { data } = await supabase.auth.getUser()
-  const user = data.user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect("/login")
+    return redirect("/login?message=Please log in to access settings.")
   }
 
   let settings: UserSettings
   try {
-    const fetchedSettings = await SettingsService.getSettings(user.id)
-    // Ensure no null/undefined values for controlled components
-    settings = {
-      ...getDefaultSettings(user), // Start with defaults
-      ...fetchedSettings, // Override with fetched values
-      quietStart: fetchedSettings.quietStart || "22:00",
-      quietEnd: fetchedSettings.quietEnd || "08:00",
-      defaultReminderTime: fetchedSettings.defaultReminderTime || "09:00",
-      firstName: fetchedSettings.firstName || (user.user_metadata?.firstName as string) || "",
-      lastName: fetchedSettings.lastName || (user.user_metadata?.lastName as string) || "",
-    }
+    settings = await SettingsService.getSettings(user.id)
   } catch (error) {
-    console.error("Failed to fetch settings, using defaults:", error)
-    settings = getDefaultSettings(user)
+    console.error("Failed to fetch settings for user:", user.id, error)
+    // Fallback to default settings if fetching fails or no settings exist
+    // Ensure all fields from UserSettings are present
+    settings = {
+      id: user.id, // Use user.id as a fallback or generate a new one if your service expects it
+      userId: user.id,
+      firstName: user.user_metadata?.firstName || "",
+      lastName: user.user_metadata?.lastName || "",
+      email: user.email || "",
+      // profileImage: user.user_metadata?.profileImage || "", // Handled by avatar logic or separate upload
+      dateFormat: "MM/DD/YYYY",
+      timeFormat: "h:mm A",
+      timezone: typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC",
+      enableNotifications: true,
+      notificationSound: "default",
+      theme: "system",
+      language: "en",
+      createdAt: new Date().toISOString(), // Should ideally come from DB or be set on creation
+      updatedAt: new Date().toISOString(), // Should ideally come from DB
+    }
   }
 
   return <SettingsClientContent user={user} initialSettings={settings} />
