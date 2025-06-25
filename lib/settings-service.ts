@@ -51,6 +51,7 @@ const DEFAULT_SETTINGS_VALUES: Omit<
 
 export class SettingsService {
   private static async getProfileData(userId: string): Promise<Partial<UserSettings>> {
+    console.log("[SettingsService] Attempting to fetch profile data for user:", userId)
     const { data, error } = await supabase
       .from("profiles")
       .select("first_name, last_name, email, bio")
@@ -58,7 +59,9 @@ export class SettingsService {
       .single()
 
     if (error && error.code !== "PGRST116") {
-      console.error("Error fetching profile data for settings:", error)
+      console.error("[SettingsService] Error fetching profile data:", error)
+    } else {
+      console.log("[SettingsService] Successfully fetched profile data:", data)
     }
     return {
       firstName: data?.first_name ?? "User",
@@ -69,47 +72,56 @@ export class SettingsService {
   }
 
   static async getSettings(userId: string): Promise<UserSettings> {
+    console.log(`[SettingsService] getSettings called for user: ${userId}`)
     try {
+      console.log("[SettingsService] Step 1: Fetching profile info...")
       const profileInfo = await this.getProfileData(userId)
+      console.log("[SettingsService] Step 1 Complete. Profile info:", profileInfo)
 
+      console.log("[SettingsService] Step 2: Fetching user_settings...")
       const { data: settingsData, error: settingsError } = await supabase
         .from("user_settings")
         .select("*")
         .eq("user_id", userId)
         .maybeSingle()
+      console.log("[SettingsService] Step 2 Complete. Settings data:", settingsData, "Error:", settingsError)
 
       if (settingsError) {
-        console.error("Error fetching user_settings from Supabase:", settingsError)
+        console.error("[SettingsService] Error fetching user_settings from Supabase:", settingsError)
         throw settingsError
       }
 
       if (settingsData) {
-        return {
+        console.log("[SettingsService] Settings found. Merging with defaults and profile info.")
+        const finalSettings = {
           ...DEFAULT_SETTINGS_VALUES,
           ...profileInfo,
           email: profileInfo.email || "user@example.com",
           ...settingsData,
           user_id: undefined,
         } as UserSettings
+        console.log("[SettingsService] Returning merged settings:", finalSettings)
+        return finalSettings
       } else {
-        console.log(`No settings found for user ${userId}. Creating default settings.`)
+        console.log(`[SettingsService] No settings found for user ${userId}. Creating and returning default settings.`)
         const defaultSettingsForUser: UserSettings = {
-          ...DEFAULT_SETTINGS_VALUES, // This will not include the time fields
+          ...DEFAULT_SETTINGS_VALUES,
           ...profileInfo,
           email: profileInfo.email || "user@example.com",
-          // quietStart, quietEnd, defaultReminderTime will be undefined here
         }
         await this.saveSettings(defaultSettingsForUser, userId, true)
+        console.log("[SettingsService] Returning new default settings:", defaultSettingsForUser)
         return defaultSettingsForUser
       }
     } catch (error) {
-      console.error("Critical error in SettingsService.getSettings, returning hardcoded defaults:", error)
+      console.error("[SettingsService] Critical error in getSettings. Returning hardcoded defaults.", error)
       const profileDefaults = { firstName: "User", lastName: "", email: "user@example.com", bio: "" }
-      return {
+      const fallback = {
         ...DEFAULT_SETTINGS_VALUES,
         ...profileDefaults,
-        // Time fields will be undefined here as well
       }
+      console.log("[SettingsService] Returning fallback settings:", fallback)
+      return fallback
     }
   }
 
@@ -119,7 +131,6 @@ export class SettingsService {
         first_name: settings.firstName,
         last_name: settings.lastName,
         bio: settings.bio,
-        // email is not updated here to avoid conflict with auth.users.email
       }
       const { error: profileError } = await supabase.from("profiles").update(profileUpdates).eq("id", userId)
 
@@ -127,7 +138,6 @@ export class SettingsService {
         console.error("Error updating profile:", profileError)
       }
 
-      // Prepare user_settings data. Optional time fields will be omitted by Supabase client if undefined.
       const userSettingsDataSnakeCase = {
         user_id: userId,
         push_enabled: settings.pushEnabled,
@@ -135,13 +145,13 @@ export class SettingsService {
         sound_enabled: settings.soundEnabled,
         vibration_enabled: settings.vibrationEnabled,
         quiet_hours: settings.quietHours,
-        quiet_start: settings.quietStart, // Will be undefined on initial save
-        quiet_end: settings.quietEnd, // Will be undefined on initial save
+        quiet_start: settings.quietStart,
+        quiet_end: settings.quietEnd,
         timezone: settings.timezone,
         theme: settings.theme,
         language: settings.language,
         reminder_style: settings.reminderStyle,
-        default_reminder_time: settings.defaultReminderTime, // Will be undefined on initial save
+        default_reminder_time: settings.defaultReminderTime,
         week_starts_on: settings.weekStartsOn,
         date_format: settings.dateFormat,
         time_format: settings.timeFormat,
