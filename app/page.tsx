@@ -1,377 +1,265 @@
-"use client"
-
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Target, CheckCircle, Clock, TrendingUp, Bell, Sparkles, QuoteIcon } from "lucide-react" // Renamed Quote to QuoteIcon
-import { Header } from "@/components/dashboard/header"
-import { Sidebar } from "@/components/dashboard/sidebar"
-import { CreateReminderModal } from "@/components/reminders/create-reminder-modal"
-import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
-import { useAuth } from "@/components/auth/auth-provider"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useRouter } from "next/navigation"
-import { QuoteGenerator } from "@/components/quotes/quote-generator" // Import QuoteGenerator
-import { cn } from "@/lib/utils"
+import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { Bell, Target, Heart, Brain, TrendingUp, CheckCircle, ArrowRight, Star, Users, Zap } from "lucide-react"
 
-interface SafeReminder {
-  id: string
-  title: string
-  description?: string
-  scheduledTime?: string
-  isActive: boolean
-  completed: boolean // Assuming this property exists or is desired
-  createdAt: string
-  userId?: string
-}
+export default async function HomePage() {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-interface SafeMicroAction {
-  id: string
-  title: string
-  description?: string
-  category: string
-  duration: string
-  frequency: string
-  isActive: boolean
-  currentStreak: number
-  bestStreak: number
-  completedToday: boolean
-  createdAt: string
-  userId?: string
-}
-
-// Define types for data passed from modals
-interface ReminderFormData {
-  title: string
-  description?: string
-  scheduledTime?: string
-  isActive: boolean
-}
-
-interface MicroActionFormData {
-  title: string
-  description?: string
-  category: string
-  duration: string
-  frequency: string
-  isActive: boolean
-}
-
-export default function DashboardPage() {
-  const { user, loading: authLoading, signOut } = useAuth()
-  const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [showReminderModal, setShowReminderModal] = useState(false)
-  const [showMicroActionModal, setShowMicroActionModal] = useState(false)
-  const [reminders, setReminders] = useState<SafeReminder[]>([])
-  const [microActions, setMicroActions] = useState<SafeMicroAction[]>([])
-  const [activeTab, setActiveTab] = useState("inspiration")
-
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-    }
-  }, [user, authLoading, router])
-
-  useEffect(() => {
-    if (user) {
-      try {
-        const savedReminders = localStorage.getItem(`reminders_${user.id}`)
-        if (savedReminders) setReminders(JSON.parse(savedReminders))
-
-        const savedMicroActions = localStorage.getItem(`microActions_${user.id}`)
-        if (savedMicroActions) setMicroActions(JSON.parse(savedMicroActions))
-      } catch (error) {
-        console.error("Error loading data from localStorage:", error)
-        setReminders([])
-        setMicroActions([])
-      }
-    }
-  }, [user])
-
-  const handleReminderCreated = (data: ReminderFormData) => {
-    // Expect ReminderFormData
-    if (!user) {
-      console.error("User not available for creating reminder.")
-      return
-    }
-    const newReminder: SafeReminder = {
-      id: Date.now().toString(),
-      ...data, // Spread the data from the form
-      completed: false, // Default value
-      createdAt: new Date().toISOString(),
-      userId: user.id,
-    }
-    const updatedReminders = [...reminders, newReminder]
-    setReminders(updatedReminders)
-    localStorage.setItem(`reminders_${user.id}`, JSON.stringify(updatedReminders))
-    setShowReminderModal(false)
-  }
-
-  const handleMicroActionCreated = (data: MicroActionFormData) => {
-    // Expect MicroActionFormData
-    if (!user) {
-      console.error("User not available for creating micro-action.")
-      return
-    }
-    const newMicroAction: SafeMicroAction = {
-      id: Date.now().toString(),
-      ...data, // Spread the data from the form
-      currentStreak: 0,
-      bestStreak: 0,
-      completedToday: false,
-      createdAt: new Date().toISOString(),
-      userId: user.id,
-    }
-    const updatedMicroActions = [...microActions, newMicroAction]
-    setMicroActions(updatedMicroActions)
-    localStorage.setItem(`microActions_${user.id}`, JSON.stringify(updatedMicroActions))
-    setShowMicroActionModal(false)
-  }
-
-  const handleLogout = async () => {
-    await signOut()
-  }
-
-  if (authLoading || !user) {
-    // Check !user as well for initial render before redirect
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    )
-  }
-
-  const stats = {
-    activeReminders: reminders.filter((r) => r.isActive).length,
-    activeHabits: microActions.filter((m) => m.isActive).length,
-    bestStreak: Math.max(0, ...microActions.map((m) => m.bestStreak)),
-    completedToday: microActions.filter((m) => m.completedToday).length,
+  if (user) {
+    redirect("/dashboard")
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header
-        user={user}
-        onLogout={handleLogout}
-        onProfileClick={() => router.push("/settings")}
-        onMenuClick={() => setSidebarOpen(!sidebarOpen)}
-      />
-      <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className={cn("flex-1 p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div className="mb-8">
-              <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, {user.firstName || "User"}!</h1>
-              <p className="text-muted-foreground">Ready to build some amazing habits today?</p>
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="border-b bg-white sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-lg">M</span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">MindReMinder</h1>
+                <p className="text-xs text-gray-500">Build Better Habits</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <Card>
-                <CardContent className="p-6 flex items-center">
-                  <Bell className="h-8 w-8 text-blue-600 mr-4" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active Reminders</p>
-                    <p className="text-2xl font-bold">{stats.activeReminders}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6 flex items-center">
-                  <Target className="h-8 w-8 text-purple-600 mr-4" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active Habits</p>
-                    <p className="text-2xl font-bold">{stats.activeHabits}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6 flex items-center">
-                  <TrendingUp className="h-8 w-8 text-orange-600 mr-4" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Best Streak</p>
-                    <p className="text-2xl font-bold">{stats.bestStreak}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6 flex items-center">
-                  <CheckCircle className="h-8 w-8 text-green-600 mr-4" />
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Completed Today</p>
-                    <p className="text-2xl font-bold">{stats.completedToday}</p>
-                  </div>
-                </CardContent>
-              </Card>
+            <div className="flex items-center space-x-4">
+              <Link href="/login" passHref>
+                <Button variant="ghost">Sign In</Button>
+              </Link>
+              <Link href="/register" passHref>
+                <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+                  Get Started Free
+                </Button>
+              </Link>
             </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 bg-card shadow-sm">
-                <TabsTrigger value="inspiration">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Daily Inspiration
-                </TabsTrigger>
-                <TabsTrigger value="reminders">
-                  <Bell className="h-4 w-4 mr-2" />
-                  My Reminders ({stats.activeReminders})
-                </TabsTrigger>
-                <TabsTrigger value="habits">
-                  <Target className="h-4 w-4 mr-2" />
-                  Habit Builder ({stats.activeHabits})
-                </TabsTrigger>
-                <TabsTrigger value="quotes">
-                  <QuoteIcon className="h-4 w-4 mr-2" />
-                  Quote Generator
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="inspiration">
-                <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 border-0 shadow-lg">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-orange-900 dark:text-orange-100">
-                      <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
-                      Today's Inspiration
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="bg-background/70 backdrop-blur-sm p-6 rounded-xl">
-                      <blockquote className="text-lg italic text-center mb-4">
-                        "The journey of a thousand miles begins with one step."
-                      </blockquote>
-                      <footer className="text-center text-sm text-muted-foreground">— Lao Tzu</footer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="reminders" className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">Your Reminders</h2>
-                    <p className="text-muted-foreground">{stats.activeReminders} active reminders</p>
-                  </div>
-                  <Button onClick={() => setShowReminderModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Reminder
-                  </Button>
-                </div>
-                {reminders.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {reminders.map((reminder) => (
-                      <Card key={reminder.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h3 className="font-semibold mb-1">{reminder.title}</h3>
-                              {reminder.description && (
-                                <p className="text-sm text-muted-foreground mb-2">{reminder.description}</p>
-                              )}
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3" />
-                                  {new Date(reminder.createdAt).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            <div
-                              className={`w-2 h-2 rounded-full mt-1 ${reminder.isActive ? "bg-green-500" : "bg-gray-400"}`}
-                            ></div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No Reminders Yet</h3>
-                      <p className="text-muted-foreground mb-4">Create your first reminder.</p>
-                      <Button onClick={() => setShowReminderModal(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Reminder
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="habits" className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">Habit Builder</h2>
-                    <p className="text-muted-foreground">{stats.activeHabits} active micro-actions</p>
-                  </div>
-                  <Button onClick={() => setShowMicroActionModal(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Micro-Action
-                  </Button>
-                </div>
-                {microActions.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {microActions.map((action) => (
-                      <Card key={action.id}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold">{action.title}</h3>
-                                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
-                                  {action.category}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <TrendingUp className="h-4 w-4" />
-                                  {action.currentStreak} day streak
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  {action.duration}
-                                </span>
-                              </div>
-                            </div>
-                            <Button size="sm" variant="outline">
-                              Mark Done
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">No Habits Yet</h3>
-                      <p className="text-muted-foreground mb-4">Create your first micro-action.</p>
-                      <Button onClick={() => setShowMicroActionModal(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Habit
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="quotes">
-                <QuoteGenerator user={user} />
-              </TabsContent>
-            </Tabs>
           </div>
-        </main>
-      </div>
-      <CreateReminderModal
-        open={showReminderModal}
-        onOpenChange={setShowReminderModal}
-        onReminderCreated={handleReminderCreated}
-      />
-      <CreateMicroActionModal
-        open={showMicroActionModal}
-        onOpenChange={setShowMicroActionModal}
-        onMicroActionCreated={handleMicroActionCreated}
-      />
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="text-center">
+            <Badge className="mb-6 bg-blue-100 text-blue-800 hover:bg-blue-100">
+              <Zap className="w-4 h-4 mr-2" />
+              Transform Your Life with Micro-Actions
+            </Badge>
+
+            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-8">
+              Build Better
+              <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                Habits Daily
+              </span>
+            </h1>
+
+            <p className="text-xl md:text-2xl text-gray-600 mb-12 max-w-4xl mx-auto leading-relaxed">
+              Transform your life through gentle reminders, micro-actions, and AI-powered motivation. Start small, think
+              big, achieve extraordinary results.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+              <Link href="/register" passHref>
+                <Button
+                  size="lg"
+                  className="text-lg px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                >
+                  Start Building Habits
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Button size="lg" variant="outline" className="text-lg px-8 py-4">
+                Watch Demo
+              </Button>
+            </div>
+
+            {/* Social Proof */}
+            <div className="flex items-center justify-center space-x-8 text-sm text-gray-600">
+              <div className="flex items-center">
+                <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+                Free forever
+              </div>
+              <div className="flex items-center">
+                <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+                Science-backed
+              </div>
+              <div className="flex items-center">
+                <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+                10,000+ users
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-24 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Everything You Need to Succeed</h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Powerful features designed to make habit building effortless, sustainable, and actually enjoyable.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: Target,
+                title: "Micro-Actions",
+                description: "Break big goals into tiny 30-second actions that build unstoppable momentum.",
+                color: "blue",
+              },
+              {
+                icon: Bell,
+                title: "Smart Reminders",
+                description: "Gentle, perfectly-timed nudges that arrive when you need them most.",
+                color: "purple",
+              },
+              {
+                icon: Brain,
+                title: "AI Motivation",
+                description: "Personalized quotes and insights powered by AI to keep you inspired.",
+                color: "green",
+              },
+              {
+                icon: TrendingUp,
+                title: "Progress Tracking",
+                description: "Beautiful visualizations of your streaks, growth, and achievements.",
+                color: "orange",
+              },
+              {
+                icon: Users,
+                title: "Accountability",
+                description: "Share your journey with friends and build habits together.",
+                color: "red",
+              },
+              {
+                icon: Heart,
+                title: "Mindful Approach",
+                description: "Focus on self-compassion and sustainable growth, not perfection.",
+                color: "pink",
+              },
+            ].map((feature, index) => (
+              <Card key={index} className="border-2 hover:border-blue-200 transition-all duration-300 hover:shadow-lg">
+                <CardContent className="p-8">
+                  <div
+                    className={`w-16 h-16 bg-${feature.color}-100 rounded-2xl flex items-center justify-center mb-6`}
+                  >
+                    <feature.icon className={`w-8 h-8 text-${feature.color}-600`} />
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">{feature.title}</h3>
+                  <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">Real People, Real Results</h2>
+            <p className="text-xl text-gray-600">
+              See how MindReMinder is transforming lives, one micro-action at a time.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                name: "Sarah Johnson",
+                role: "Marketing Manager",
+                content:
+                  "I tried to meditate for years but always gave up. MindReMinder helped me start with just 30 seconds a day. Now I meditate for 20 minutes daily!",
+                rating: 5,
+              },
+              {
+                name: "Michael Chen",
+                role: "Software Developer",
+                content:
+                  "The micro-action approach is genius. Instead of 'write a book,' I get reminded to 'write one sentence.' I've written 3 chapters in 2 months!",
+                rating: 5,
+              },
+              {
+                name: "Emma Davis",
+                role: "Teacher",
+                content:
+                  "Finally, a habit app that doesn't make me feel guilty! The gentle reminders and progress tracking keep me motivated without the pressure.",
+                rating: 5,
+              },
+            ].map((testimonial, index) => (
+              <Card key={index} className="border-0 shadow-lg">
+                <CardContent className="p-8">
+                  <div className="flex mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <blockquote className="text-gray-700 mb-6 leading-relaxed">"{testimonial.content}"</blockquote>
+                  <div>
+                    <div className="font-bold text-gray-900">{testimonial.name}</div>
+                    <div className="text-gray-600">{testimonial.role}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">Ready to Transform Your Life?</h2>
+          <p className="text-xl text-blue-100 mb-12 leading-relaxed">
+            Join thousands of people who've discovered the power of micro-actions to create lasting change. Start your
+            transformation today – it's completely free.
+          </p>
+
+          <Link href="/register" passHref>
+            <Button
+              size="lg"
+              variant="secondary"
+              className="text-lg px-12 py-4 bg-white text-blue-600 hover:bg-gray-100"
+            >
+              Start Your Journey Today
+              <ArrowRight className="ml-2 h-6 w-6" />
+            </Button>
+          </Link>
+
+          <p className="text-blue-200 mt-6">Free forever • No credit card required • Cancel anytime</p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-16 bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <div className="flex items-center justify-center space-x-3 mb-6">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+                <span className="text-white font-bold text-lg">M</span>
+              </div>
+              <span className="text-2xl font-bold text-white">MindReMinder</span>
+            </div>
+            <p className="text-gray-400 mb-8">
+              Build life-changing habits through the power of micro-actions and gentle reminders.
+            </p>
+            <p className="text-gray-500">© 2025 MindReMinder. Built with ❤️ for lasting change through micro-actions.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
