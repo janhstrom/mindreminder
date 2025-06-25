@@ -10,7 +10,6 @@ import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
 // import { ProfileImageUpload } from "@/components/settings/profile-image-upload" // Commented out
 import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
-import { UserPreferencesCard } from "@/components/settings/user-preferences"
 import { NotificationSettings } from "@/components/notifications/notification-settings" // CORRECTED PATH
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
@@ -162,7 +161,7 @@ export default function SettingsPage() {
               </div>
               <div className="lg:col-span-2 space-y-8">
                 <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
-                <UserPreferencesCard />
+                {/* <UserPreferencesCard /> */}
                 <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} />
               </div>
             </div>
