@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Target, CheckCircle, Clock, TrendingUp, Bell, Sparkles, QuoteIcon } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useRouter } from "next/navigation"
 import { QuoteGenerator } from "@/components/quotes/quote-generator"
 import { CreateReminderModal } from "@/components/reminders/create-reminder-modal"
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
 import { cn } from "@/lib/utils"
-import { Sidebar } from "@/components/dashboard/sidebar" // Assuming Sidebar is a client component
+import { Sidebar } from "@/components/dashboard/sidebar"
+import type { User } from "@supabase/supabase-js"
 
 // Define types for data passed from modals
 interface ReminderFormData {
@@ -55,13 +55,10 @@ interface SafeMicroAction {
   userId?: string
 }
 
-interface UserProfile {
-  id: string
-  email?: string
-  firstName?: string
-  lastName?: string
-  profileImage?: string
-  // Add other fields from your 'profiles' table that you need
+interface UserProfile extends User {
+  firstName?: string | null
+  lastName?: string | null
+  profileImage?: string | null
 }
 
 interface DashboardClientContentProps {
@@ -69,8 +66,7 @@ interface DashboardClientContentProps {
 }
 
 export function DashboardClientContent({ user }: DashboardClientContentProps) {
-  const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false) // Sidebar state managed here
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMicroActionModal, setShowMicroActionModal] = useState(false)
   const [reminders, setReminders] = useState<SafeReminder[]>([])
@@ -78,7 +74,7 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
   const [activeTab, setActiveTab] = useState("inspiration")
 
   useEffect(() => {
-    // User object is passed as a prop, so no need to check authLoading or redirect here.
+    // User object is passed as a prop, so no need to check authLoading or redirect.
     // That's handled by the parent Server Component (DashboardPage).
     if (user) {
       try {
@@ -89,7 +85,6 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
         if (savedMicroActions) setMicroActions(JSON.parse(savedMicroActions))
       } catch (error) {
         console.error("Error loading data from localStorage:", error)
-        // Initialize with empty arrays if localStorage fails
         setReminders([])
         setMicroActions([])
       }
@@ -128,15 +123,6 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
     setShowMicroActionModal(false)
   }
 
-  // This loading state is for client-side data or if user prop is not yet available (though it should be)
-  if (!user) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    )
-  }
-
   const stats = {
     activeReminders: reminders.filter((r) => r.isActive).length,
     activeHabits: microActions.filter((m) => m.isActive).length,
@@ -145,7 +131,7 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
   }
 
   return (
-    <>
+    <div className="flex w-full">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <main className={cn("flex-1 p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
         <div className="max-w-7xl mx-auto space-y-6">
@@ -155,6 +141,7 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {/* Stat Cards */}
             <Card>
               <CardContent className="p-6 flex items-center">
                 <Bell className="h-8 w-8 text-blue-600 mr-4" />
@@ -213,6 +200,7 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
               </TabsTrigger>
             </TabsList>
 
+            {/* TabsContent sections... */}
             <TabsContent value="inspiration">
               <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 border-0 shadow-lg">
                 <CardHeader>
@@ -347,17 +335,17 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
             </TabsContent>
           </Tabs>
         </div>
-        <CreateReminderModal
-          open={showReminderModal}
-          onOpenChange={setShowReminderModal}
-          onReminderCreated={handleReminderCreated}
-        />
-        <CreateMicroActionModal
-          open={showMicroActionModal}
-          onOpenChange={setShowMicroActionModal}
-          onMicroActionCreated={handleMicroActionCreated}
-        />
       </main>
-    </>
+      <CreateReminderModal
+        open={showReminderModal}
+        onOpenChange={setShowReminderModal}
+        onReminderCreated={handleReminderCreated}
+      />
+      <CreateMicroActionModal
+        open={showMicroActionModal}
+        onOpenChange={setShowMicroActionModal}
+        onMicroActionCreated={handleMicroActionCreated}
+      />
+    </div>
   )
 }
