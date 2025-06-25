@@ -1,60 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Temporarily commented out
+// import { Button } from "@/components/ui/button" // Temporarily commented out
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Keep Card, CardHeader, CardTitle for now
+// import { Label } from "@/components/ui/label" // Temporarily commented out
 import { Globe } from "lucide-react"
-import { UserPreferencesService, type UserPreferences } from "@/lib/user-preferences"
-import { Analytics } from "@/lib/analytics"
+// Services are unlikely to cause render errors directly, but keep for completeness if needed later
+// import { UserPreferencesService, type UserPreferences } from "@/lib/user-preferences"
+// import { Analytics } from "@/lib/analytics"
 
 export function UserPreferencesCard() {
   const [isMounted, setIsMounted] = useState(false)
-  const [preferences, setPreferences] = useState<UserPreferences>({
-    dateFormat: "MM/dd/yyyy",
-    timeFormat: "12h",
-    timezone: "UTC",
-    language: "en",
-  })
-  const [hasChanges, setHasChanges] = useState(false)
-
-  const preferencesService = UserPreferencesService.getInstance()
-
-  useEffect(() => {
-    setPreferences(preferencesService.getPreferences())
-  }, [preferencesService])
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
-
-  const handlePreferenceChange = (key: keyof UserPreferences, value: string) => {
-    const newPreferences = { ...preferences, [key]: value }
-    setPreferences(newPreferences)
-    setHasChanges(true)
-  }
-
-  const handleSave = () => {
-    preferencesService.savePreferences(preferences)
-    setHasChanges(false)
-
-    Analytics.event("user_preferences_updated", {
-      date_format: preferences.dateFormat,
-      time_format: preferences.timeFormat,
-      timezone: preferences.timezone,
-      event_category: "settings",
-    })
-  }
-
-  const handleReset = () => {
-    const defaultPrefs = preferencesService.getPreferences()
-    setPreferences(defaultPrefs)
-    setHasChanges(false)
-  }
-
-  const exampleDate = new Date()
-  const formattedExample = preferences ? preferencesService.formatDateTime(exampleDate, preferences) : "Loading..."
 
   if (!isMounted) {
     return (
@@ -62,12 +22,10 @@ export function UserPreferencesCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            Date & Time Preferences (Loading...)
+            Date & Time Preferences (Loading Skeleton...)
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          <div className="h-8 w-1/2 bg-muted rounded-md animate-pulse" />
-          <div className="h-8 w-3/4 bg-muted rounded-md animate-pulse" />
+        <CardContent>
           <div className="h-8 w-full bg-muted rounded-md animate-pulse" />
         </CardContent>
       </Card>
@@ -79,90 +37,12 @@ export function UserPreferencesCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Globe className="h-5 w-5" />
-          Date & Time Preferences
+          Minimal User Preferences Card
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <p>Date Format, Time Format, and Timezone selectors are temporarily hidden for debugging.</p>
-
-        {/* Date Format Section - Temporarily Hidden
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Date Format
-            </Label>
-            <Select
-              value={preferences.dateFormat}
-              onValueChange={(value) => handlePreferenceChange("dateFormat", value as UserPreferences["dateFormat"])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select date format" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="MM/dd/yyyy">MM/dd/yyyy (US)</SelectItem>
-                <SelectItem value="dd/MM/yyyy">dd/MM/yyyy (UK/EU)</SelectItem>
-                <SelectItem value="yyyy-MM-dd">yyyy-MM-dd (ISO)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Time Format
-            </Label>
-            <Select
-              value={preferences.timeFormat}
-              onValueChange={(value) => handlePreferenceChange("timeFormat", value as UserPreferences["timeFormat"])}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select time format" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="12h">12-hour (AM/PM)</SelectItem>
-                <SelectItem value="24h">24-hour</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        */}
-
-        {/* Timezone Section - Temporarily Hidden
-        <div className="space-y-2">
-          <Label>Timezone</Label>
-          <Select value={preferences.timezone} onValueChange={(value) => handlePreferenceChange("timezone", value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select timezone" />
-            </SelectTrigger>
-            <SelectContent className="max-h-60">
-              {preferencesService.getTimezones().map((tz) => (
-                <SelectItem key={tz} value={tz}>
-                  {tz.replace(/_/g, " ")}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        */}
-
-        {/* Preview */}
-        <div className="p-3 bg-muted/50 rounded-lg">
-          <Label className="text-sm font-medium">Preview</Label>
-          <p className="text-sm text-muted-foreground mt-1">
-            Current date and time: <span className="font-mono">{formattedExample}</span>
-          </p>
-        </div>
-
-        {/* Actions */}
-        {hasChanges && (
-          <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave}>Save Changes</Button>
-            <Button variant="outline" onClick={handleReset}>
-              Reset to Default
-            </Button>
-          </div>
-        )}
+      <CardContent>
+        <p>This is a minimal version for debugging error #130.</p>
+        {/* All other inputs and logic removed */}
       </CardContent>
     </Card>
   )
