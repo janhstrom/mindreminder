@@ -1,43 +1,32 @@
 "use client"
 
-import type React from "react" // Ensure React is imported if JSX is used directly
-import { useState } from "react"
-// import { useRouter } from "next/navigation" // Removed
+import { useFormStatus } from "react-dom"
+import { signUp } from "@/lib/auth/actions"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { useAuth } from "@/components/auth/auth-provider" // Ensure this path is correct
-import Link from "next/link"
+import { useSearchParams } from "next/navigation" // To read messages from URL
+
+function SubmitButton() {
+  const { pending } = useFormStatus()
+  return (
+    <Button type="submit" className="w-full" aria-disabled={pending} disabled={pending}>
+      {pending ? "Creating Account..." : "Create Account"}
+    </Button>
+  )
+}
 
 export default function RegisterPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
-  // const [isLoading, setIsLoading] = useState(false) // isLoading is now from useAuth
-  // const [error, setError] = useState("") // error is now from useAuth
-  const { signUp, loading, error: authError } = useAuth() // Renamed error to authError
-  // const router = useRouter() // Removed
+  const searchParams = useSearchParams()
+  const message = searchParams.get("message") // Can be error or success message
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    // setIsLoading(true) // Handled by useAuth
-    // setError("") // Handled by useAuth
-
-    try {
-      await signUp(email, password, firstName, lastName)
-      // router.push("/dashboard") // Handled by AuthProvider
-    } catch (err) {
-      // Error is set by AuthProvider
-      console.error("Register page submit error:", err)
-    }
-    // finally { // Handled by useAuth
-    //   setIsLoading(false)
-    // }
-  }
+  // Determine if the message is an error based on its content (simple check)
+  // A more robust way would be for the server action to return a structured state via useFormState
+  const isError = message && !message.toLowerCase().includes("check email")
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -54,63 +43,48 @@ export default function RegisterPage() {
             <p className="text-gray-600">Join MindReMinder today</p>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form action={signUp} className="space-y-4">
+              {/* 
+                For first_name and last_name, ensure your signUp server action
+                and your 'profiles' table setup can handle these.
+                The current `signUp` action in `lib/auth/actions.ts` only takes email/password.
+                You'd need to modify it to accept and process these additional fields,
+                likely by creating a profile entry after successful Supabase auth.signUp.
+                For now, these fields will be submitted but not used by the current `signUp` action.
+              */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                    placeholder="First name"
-                  />
+                  <Input id="firstName" name="firstName" required placeholder="First name" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                    placeholder="Last name"
-                  />
+                  <Input id="lastName" name="lastName" required placeholder="Last name" />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="Enter your email"
-                />
+                <Input id="email" name="email" type="email" required placeholder="Enter your email" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
                   id="password"
+                  name="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="Create a password"
                   minLength={6}
                 />
               </div>
 
-              {authError && (
-                <Alert variant="destructive">
+              {message && (
+                <Alert variant={isError ? "destructive" : "default"}>
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{authError}</AlertDescription>
+                  <AlertDescription>{message}</AlertDescription>
                 </Alert>
               )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Creating Account..." : "Create Account"}
-              </Button>
+              <SubmitButton />
             </form>
 
             <div className="mt-6 text-center">
