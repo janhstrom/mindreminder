@@ -2,12 +2,15 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { cookies } from "next/headers" // Import cookies
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { Bell, Target, Heart, Brain, TrendingUp, CheckCircle, ArrowRight, Star, Users, Zap } from "lucide-react"
 
 export default async function HomePage() {
-  const supabase = createClient()
+  const cookieStore = cookies() // Get the cookie store
+  const supabase = createClient(cookieStore) // Pass it to the Supabase client
+
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -77,6 +80,7 @@ export default async function HomePage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
+              {/* Assuming "Watch Demo" doesn't require router.push for now, or would be a link to a demo page/modal */}
               <Button size="lg" variant="outline" className="text-lg px-8 py-4">
                 Watch Demo
               </Button>
@@ -101,7 +105,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Section - Assuming this section is static and doesn't need client-side auth logic */}
       <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
@@ -166,7 +170,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials */}
+      {/* Testimonials Section - Assuming this section is static */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-20">
@@ -243,7 +247,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
+      {/* Footer - Assuming this section is static */}
       <footer className="py-16 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
