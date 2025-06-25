@@ -24,16 +24,24 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [initialSettings, setInitialSettings] = useState<UserSettings | null>(null)
 
+  // Log auth state on every render
+  console.log("[SettingsPage] Rendering. AuthLoading:", authLoading, "User:", user)
+
   useEffect(() => {
+    console.log("[SettingsPage] Auth effect triggered. AuthLoading:", authLoading, "User:", user)
     if (!authLoading && !user) {
+      console.log("[SettingsPage] Not authenticated, redirecting to /login")
       router.push("/login")
     }
   }, [user, authLoading, router])
 
   useEffect(() => {
+    console.log("[SettingsPage] Settings fetch effect triggered. User:", user)
     if (user) {
+      console.log(`[SettingsPage] User found (ID: ${user.id}). Attempting to fetch settings.`)
       SettingsService.getSettings(user.id)
         .then((fetchedSettings) => {
+          console.log("[SettingsPage] Successfully fetched settings:", fetchedSettings)
           const processedSettings: UserSettings = {
             ...fetchedSettings,
             quietStart: fetchedSettings.quietStart || "",
@@ -44,7 +52,7 @@ export default function SettingsPage() {
           setInitialSettings(processedSettings)
         })
         .catch((error) => {
-          console.error("Error fetching settings in page useEffect:", error)
+          console.error("[SettingsPage] Error fetching settings in page useEffect:", error)
           toast({
             title: "Error Loading Settings",
             description: "Could not load your settings. Please try again later.",
@@ -60,7 +68,7 @@ export default function SettingsPage() {
             quietEnd: "",
             firstName: "User",
             lastName: "",
-            email: user.email || "",
+            email: user.email || "", // Ensure user.email is accessed safely
             timezone: "UTC",
             bio: "",
             theme: "system",
@@ -74,8 +82,10 @@ export default function SettingsPage() {
           setSettings(defaultFallback)
           setInitialSettings(defaultFallback)
         })
+    } else {
+      console.log("[SettingsPage] No user found in settings fetch effect. Skipping settings fetch.")
     }
-  }, [user, toast])
+  }, [user, toast]) // Dependency array includes user
 
   const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => {
     const { profileImage, ...restOfSettings } = newSettings as any
@@ -108,7 +118,9 @@ export default function SettingsPage() {
     setSettings(initialSettings)
   }
 
+  // This is the loading condition
   if (authLoading || !settings) {
+    console.log("[SettingsPage] Showing loader. AuthLoading:", authLoading, "Settings is null:", !settings)
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
