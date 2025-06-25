@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, Globe, Calendar } from "lucide-react"
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select" // Temporarily commented out
+import { Globe } from "lucide-react"
 import { UserPreferencesService, type UserPreferences } from "@/lib/user-preferences"
 import { Analytics } from "@/lib/analytics"
 
@@ -62,7 +62,7 @@ export function UserPreferencesCard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            Date & Time Preferences
+            Date & Time Preferences (Loading...)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -83,8 +83,10 @@ export function UserPreferencesCard() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
+        <p>Date Format, Time Format, and Timezone selectors are temporarily hidden for debugging.</p>
+
+        {/* Date Format Section - Temporarily Hidden
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Date Format */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -105,7 +107,6 @@ export function UserPreferencesCard() {
             </Select>
           </div>
 
-          {/* Time Format */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Clock className="h-4 w-4" />
@@ -125,8 +126,9 @@ export function UserPreferencesCard() {
             </Select>
           </div>
         </div>
+        */}
 
-        {/* Timezone */}
+        {/* Timezone Section - Temporarily Hidden
         <div className="space-y-2">
           <Label>Timezone</Label>
           <Select value={preferences.timezone} onValueChange={(value) => handlePreferenceChange("timezone", value)}>
@@ -142,6 +144,7 @@ export function UserPreferencesCard() {
             </SelectContent>
           </Select>
         </div>
+        */}
 
         {/* Preview */}
         <div className="p-3 bg-muted/50 rounded-lg">
