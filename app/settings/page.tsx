@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
-// import { NotificationSettings } from "@/components/notifications/notification-settings" // CORRECTED PATH
+import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
+import { UserPreferencesCard } from "@/components/settings/user-preferences"
 import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
@@ -33,7 +34,6 @@ export default function SettingsPage() {
     if (user) {
       SettingsService.getSettings(user.id)
         .then((fetchedSettings) => {
-          // Ensure optional time fields are empty strings for form inputs
           const processedSettings: UserSettings = {
             ...fetchedSettings,
             quietStart: fetchedSettings.quietStart || "",
@@ -41,7 +41,7 @@ export default function SettingsPage() {
             defaultReminderTime: fetchedSettings.defaultReminderTime || "",
           }
           setSettings(processedSettings)
-          setInitialSettings(processedSettings) // Also use processed settings for initial state
+          setInitialSettings(processedSettings)
         })
         .catch((error) => {
           console.error("Error fetching settings in page useEffect:", error)
@@ -50,17 +50,14 @@ export default function SettingsPage() {
             description: "Could not load your settings. Please try again later.",
             variant: "destructive",
           })
-          // Fallback to default structure if service fails catastrophically,
-          // though SettingsService itself has a fallback.
-          // This ensures 'settings' is not null to avoid infinite loader if service's fallback fails.
           const defaultFallback: UserSettings = {
             pushEnabled: true,
             emailEnabled: false,
             soundEnabled: true,
             vibrationEnabled: true,
             quietHours: false,
-            quietStart: "", // Default to empty string
-            quietEnd: "", // Default to empty string
+            quietStart: "",
+            quietEnd: "",
             firstName: "User",
             lastName: "",
             email: user.email || "",
@@ -69,7 +66,7 @@ export default function SettingsPage() {
             theme: "system",
             language: "en",
             reminderStyle: "gentle",
-            defaultReminderTime: "", // Default to empty string
+            defaultReminderTime: "",
             weekStartsOn: "monday",
             dateFormat: "MM/dd/yyyy",
             timeFormat: "12h",
@@ -81,8 +78,7 @@ export default function SettingsPage() {
   }, [user, toast])
 
   const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => {
-    // Ensure not to add profileImage here if it's not part of UserSettings type
-    const { profileImage, ...restOfSettings } = newSettings as any // temp cast to handle if profileImage was passed
+    const { profileImage, ...restOfSettings } = newSettings as any
     setSettings((prev) => (prev ? { ...prev, ...restOfSettings } : null))
   }, [])
 
@@ -149,21 +145,14 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-1 space-y-8">
-                {/* <ProfileImageUpload
-                userName={`${settings.firstName} ${settings.lastName}`}
-                currentImage={user?.profileImage}
-                onImageChange={(imageUrl) => handleSettingsChange({ profileImage: imageUrl })}
-              /> */}
                 <p className="text-sm text-muted-foreground p-4 border rounded-md">
                   Profile image upload temporarily disabled for debugging.
                 </p>
               </div>
               <div className="lg:col-span-2 space-y-8">
-                {/* <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} /> */}
-                {/* <UserPreferencesCard /> */}
-                {/* <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} /> */}
+                <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
+                <UserPreferencesCard />
                 <NotificationSettingsCard />
-                <p>All content cards are currently commented out for debugging.</p>
               </div>
             </div>
           </div>
