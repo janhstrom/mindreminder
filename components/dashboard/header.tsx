@@ -1,10 +1,6 @@
-// This can be a Client Component if it needs client-side hooks like useTheme,
-// or if onLogout is handled by a client-side form submission to a server action.
-// For simplicity with server actions, we can make the logout button a mini-form.
 "use client"
 
 import { useState } from "react"
-
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -14,12 +10,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Moon, Sun, User, LogOutIcon } from "lucide-react" // Renamed LogOut to LogOutIcon
+import { Bell, Moon, Sun, User, LogOutIcon, Menu } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
 import type { User as SupabaseUser } from "@supabase/supabase-js"
 
-// Define a more specific UserProfile type
 interface UserProfile extends SupabaseUser {
   firstName?: string
   lastName?: string
@@ -27,12 +22,12 @@ interface UserProfile extends SupabaseUser {
 }
 
 interface HeaderProps {
-  user: UserProfile // User data passed from Server Component
-  onLogout: () => Promise<void> // The logout server action
-  // onMenuClick: () => void // Assuming sidebar state is managed within DashboardClientContent now
+  user: UserProfile
+  onLogout: () => Promise<void>
+  onMenuClick: () => void
 }
 
-export function Header({ user, onLogout }: HeaderProps) {
+export function Header({ user, onLogout, onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -40,7 +35,6 @@ export function Header({ user, onLogout }: HeaderProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true)
     await onLogout()
-    // No need to router.push('/login') here, middleware or page protection will handle it.
     setIsLoggingOut(false)
   }
 
@@ -48,26 +42,18 @@ export function Header({ user, onLogout }: HeaderProps) {
     router.push("/settings")
   }
 
-  // The onMenuClick prop is removed as sidebar state is now internal to DashboardClientContent
-  // If you need Header to toggle a sidebar managed at a higher level, you'd re-add onMenuClick
-  // and adjust DashboardPage to pass it down from a state variable there, potentially making DashboardPage a client component.
-  // For now, assuming sidebar is self-contained or managed by DashboardClientContent.
+  const userFirstName = user.user_metadata?.firstName || user.email?.split("@")[0] || "User"
+  const userInitials = (userFirstName?.[0] || "U").toUpperCase()
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="flex h-16 items-center px-4">
-        {/* 
-          If sidebar toggle is needed here, DashboardPage would need to manage sidebarOpen state
-          and pass onMenuClick down. For now, this button is removed as sidebar state is in DashboardClientContent.
-          Alternatively, a global state (Context/Zustand) could manage sidebar state.
-        */}
-        {/* <Button variant="ghost" size="icon" onClick={onMenuClick}>
+        <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle menu</span>
-        </Button> */}
-        <div className="flex items-center space-x-2">
-          {" "}
-          {/* Removed ml-2 if menu button is gone */}
+        </Button>
+
+        <div className="flex items-center space-x-2 ml-2 md:ml-0">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">MR</span>
           </div>
@@ -92,12 +78,12 @@ export function Header({ user, onLogout }: HeaderProps) {
                 <Avatar className="h-8 w-8">
                   <AvatarImage
                     src={
-                      user.profileImage ||
-                      `/placeholder.svg?width=32&height=32&query=${user.firstName || "User"}+Avatar`
+                      user.user_metadata?.profileImage ||
+                      `/placeholder.svg?width=32&height=32&query=${userFirstName}+Avatar`
                     }
-                    alt={user.firstName || "User"}
+                    alt={userFirstName}
                   />
-                  <AvatarFallback>{(user.firstName?.[0] || user.email?.[0] || "U").toUpperCase()}</AvatarFallback>
+                  <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -107,7 +93,6 @@ export function Header({ user, onLogout }: HeaderProps) {
                 Profile
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {/* Logout can be a direct action call */}
               <DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
                 <LogOutIcon className="mr-2 h-4 w-4" />
                 {isLoggingOut ? "Logging out..." : "Log out"}

@@ -1,163 +1,61 @@
-"use client"
-
-import { useState, useEffect, useCallback } from "react"
-import { useAuth } from "@/components/auth/auth-provider"
-import { useRouter } from "next/navigation"
+import { cookies } from "next/headers"
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import { SettingsService, type UserSettings } from "@/lib/settings-service"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { Header } from "@/components/dashboard/header"
-import { Sidebar } from "@/components/dashboard/sidebar"
-import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
-import { UserPreferencesCard } from "@/components/settings/user-preferences"
-import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
-import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
+import SettingsClientContent from "@/components/settings/settings-client-content"
+import type { User } from "@supabase/supabase-js"
 
-export default function SettingsPage() {
-  const { user, loading: authLoading } = useAuth()
-  const router = useRouter()
-  const { toast } = useToast()
+// Helper function to create a default settings object
+const getDefaultSettings = (user: User): UserSettings => ({
+  pushEnabled: true,
+  emailEnabled: false,
+  soundEnabled: true,
+  vibrationEnabled: true,
+  quietHours: false,
+  quietStart: "22:00",
+  quietEnd: "08:00",
+  firstName: (user.user_metadata?.firstName as string) || "",
+  lastName: (user.user_metadata?.lastName as string) || "",
+  email: user.email || "",
+  timezone: "UTC",
+  bio: "",
+  theme: "system",
+  language: "en",
+  reminderStyle: "gentle",
+  defaultReminderTime: "09:00",
+  weekStartsOn: "monday",
+  dateFormat: "MM/dd/yyyy",
+  timeFormat: "12h",
+})
 
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [settings, setSettings] = useState<UserSettings | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const [initialSettings, setInitialSettings] = useState<UserSettings | null>(null)
+export default async function SettingsPage() {
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/login")
-    }
-  }, [user, authLoading, router])
+  const { data } = await supabase.auth.getUser()
+  const user = data.user
 
-  useEffect(() => {
-    if (user) {
-      SettingsService.getSettings(user.id)
-        .then((fetchedSettings) => {
-          const processedSettings: UserSettings = {
-            ...fetchedSettings,
-            quietStart: fetchedSettings.quietStart || "",
-            quietEnd: fetchedSettings.quietEnd || "",
-            defaultReminderTime: fetchedSettings.defaultReminderTime || "",
-          }
-          setSettings(processedSettings)
-          setInitialSettings(processedSettings)
-        })
-        .catch((error) => {
-          console.error("Error fetching settings in page useEffect:", error)
-          toast({
-            title: "Error Loading Settings",
-            description: "Could not load your settings. Please try again later.",
-            variant: "destructive",
-          })
-          const defaultFallback: UserSettings = {
-            pushEnabled: true,
-            emailEnabled: false,
-            soundEnabled: true,
-            vibrationEnabled: true,
-            quietHours: false,
-            quietStart: "",
-            quietEnd: "",
-            firstName: "User",
-            lastName: "",
-            email: user.email || "",
-            timezone: "UTC",
-            bio: "",
-            theme: "system",
-            language: "en",
-            reminderStyle: "gentle",
-            defaultReminderTime: "",
-            weekStartsOn: "monday",
-            dateFormat: "MM/dd/yyyy",
-            timeFormat: "12h",
-          }
-          setSettings(defaultFallback)
-          setInitialSettings(defaultFallback)
-        })
-    }
-  }, [user, toast])
-
-  const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => {
-    const { profileImage, ...restOfSettings } = newSettings as any
-    setSettings((prev) => (prev ? { ...prev, ...restOfSettings } : null))
-  }, [])
-
-  const handleSave = async () => {
-    if (!settings || !user) return
-    setIsSaving(true)
-    try {
-      await SettingsService.saveSettings(settings, user.id)
-      setInitialSettings(settings)
-      toast({
-        title: "Success!",
-        description: "Your settings have been saved.",
-      })
-    } catch (error) {
-      console.error("Failed to save settings:", error)
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSaving(false)
-    }
+  if (!user) {
+    redirect("/login")
   }
 
-  const handleReset = () => {
-    setSettings(initialSettings)
+  let settings: UserSettings
+  try {
+    const fetchedSettings = await SettingsService.getSettings(user.id)
+    // Ensure no null/undefined values for controlled components
+    settings = {
+      ...getDefaultSettings(user), // Start with defaults
+      ...fetchedSettings, // Override with fetched values
+      quietStart: fetchedSettings.quietStart || "22:00",
+      quietEnd: fetchedSettings.quietEnd || "08:00",
+      defaultReminderTime: fetchedSettings.defaultReminderTime || "09:00",
+      firstName: fetchedSettings.firstName || (user.user_metadata?.firstName as string) || "",
+      lastName: fetchedSettings.lastName || (user.user_metadata?.lastName as string) || "",
+    }
+  } catch (error) {
+    console.error("Failed to fetch settings, using defaults:", error)
+    settings = getDefaultSettings(user)
   }
 
-  if (authLoading || !settings) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    )
-  }
-
-  const hasChanges = JSON.stringify(settings) !== JSON.stringify(initialSettings)
-
-  return (
-    <div className="min-h-screen bg-background">
-      <Header user={user!} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-      <div className="flex">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        <main className={cn("flex-1 p-4 md:p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
-          <div className="max-w-4xl mx-auto space-y-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold">Settings</h1>
-                <p className="text-muted-foreground">Manage your account and preferences.</p>
-              </div>
-              {hasChanges && (
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleReset} disabled={isSaving}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Changes
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-8">
-                <p className="text-sm text-muted-foreground p-4 border rounded-md">
-                  Profile image upload temporarily disabled for debugging.
-                </p>
-              </div>
-              <div className="lg:col-span-2 space-y-8">
-                <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
-                <UserPreferencesCard />
-                <NotificationSettingsCard />
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  )
+  return <SettingsClientContent user={user} initialSettings={settings} />
 }
