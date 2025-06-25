@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
 import { createClient } from "@/lib/supabase/server"
-import { logout } from "@/lib/auth/actions"
+import { signOut } from "@/lib/auth/actions" // Corrected import: signOut
 import { Header } from "@/components/dashboard/header"
 import { DashboardClientContent } from "@/components/dashboard/dashboard-client-content"
 import type { User } from "@supabase/supabase-js"
@@ -52,7 +52,7 @@ export default async function DashboardPage() {
   // This Server Component's only job is to fetch data and render the layout.
   return (
     <div className="min-h-screen bg-background">
-      <Header user={userWithProfile} onLogout={logout} />
+      <Header user={userWithProfile} onLogout={signOut} /> {/* Corrected prop: signOut */}
       <DashboardClientContent user={userWithProfile} />
     </div>
   )
