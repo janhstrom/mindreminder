@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
-// import { ProfileImageUpload } from "@/components/settings/profile-image-upload" // Commented out
-import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
 import { NotificationSettings } from "@/components/notifications/notification-settings" // CORRECTED PATH
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
@@ -160,7 +158,7 @@ export default function SettingsPage() {
                 </p>
               </div>
               <div className="lg:col-span-2 space-y-8">
-                <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
+                {/* <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} /> */}
                 {/* <UserPreferencesCard /> */}
                 <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} />
               </div>
