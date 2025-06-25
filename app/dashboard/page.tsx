@@ -1,4 +1,5 @@
-// NO "use client" at the top of this file
+"use client"
+
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 
@@ -38,7 +39,11 @@ export default async function DashboardPage() {
 
   // Handle potential error fetching profile, but don't block rendering
   if (profileError && profileError.code !== "PGRST116") {
+    // PGRST116 means no rows found, which is not an error if profile is optional
     console.error("Error fetching profile:", profileError)
+    // Potentially throw an error here or handle it more gracefully
+    // For now, we'll let it proceed and potentially render with missing profile info
+    // throw new Error(`Failed to fetch profile: ${profileError.message}`); // This would cause a 500
   }
 
   const userWithProfile: UserProfile = {
