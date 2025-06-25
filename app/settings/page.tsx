@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Header } from "@/components/dashboard/header"
 import { Sidebar } from "@/components/dashboard/sidebar"
 // import { NotificationSettings } from "@/components/notifications/notification-settings" // CORRECTED PATH
+import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 
@@ -161,6 +162,7 @@ export default function SettingsPage() {
                 {/* <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} /> */}
                 {/* <UserPreferencesCard /> */}
                 {/* <NotificationSettings settings={settings} onSettingsChange={handleSettingsChange} /> */}
+                <NotificationSettingsCard />
                 <p>All content cards are currently commented out for debugging.</p>
               </div>
             </div>
