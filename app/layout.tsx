@@ -4,7 +4,6 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,14 +26,6 @@ export const metadata: Metadata = {
     description: "Build better habits with gentle reminders, micro-actions, and daily inspiration.",
     url: "/",
     siteName: "MindReMinder",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "MindReMinder - Personal Habit Assistant",
-      },
-    ],
     locale: "en_US",
     type: "website",
   },
@@ -42,7 +33,6 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MindReMinder - Your Personal Habit & Reminder Assistant",
     description: "Build better habits with gentle reminders, micro-actions, and daily inspiration.",
-    images: ["/og-image.png"],
   },
   robots: {
     index: true,
@@ -55,12 +45,6 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  // Only add verification if the environment variable exists
-  ...(process.env.GOOGLE_SITE_VERIFICATION && {
-    verification: {
-      google: process.env.GOOGLE_SITE_VERIFICATION,
-    },
-  }),
 }
 
 export default function RootLayout({
@@ -72,19 +56,16 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#3b82f6" />
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body className={inter.className}>
-        <Suspense fallback={null}>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster />
-          </ThemeProvider>
-        </Suspense>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   )
