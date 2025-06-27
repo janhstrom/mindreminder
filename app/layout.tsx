@@ -4,8 +4,6 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import { Analytics } from "@vercel/analytics/react"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import { Suspense } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -57,9 +55,12 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  verification: {
-    google: process.env.GOOGLE_SITE_VERIFICATION,
-  },
+  // Only add verification if the environment variable exists
+  ...(process.env.GOOGLE_SITE_VERIFICATION && {
+    verification: {
+      google: process.env.GOOGLE_SITE_VERIFICATION,
+    },
+  }),
 }
 
 export default function RootLayout({
@@ -83,8 +84,6 @@ export default function RootLayout({
             {children}
             <Toaster />
           </ThemeProvider>
-          <Analytics />
-          <SpeedInsights />
         </Suspense>
       </body>
     </html>
