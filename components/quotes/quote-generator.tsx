@@ -1,291 +1,132 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Sparkles, Share, Copy, Heart, Trash2 } from "lucide-react"
-import { SupabaseQuoteService, type FavoriteQuote } from "@/lib/quotes-supabase"
-import { UserPreferencesService } from "@/lib/user-preferences"
-import type { QuoteTopic } from "@/types"
-import type { AuthUser } from "@/lib/auth-supabase"
-import { Analytics } from "@/lib/analytics"
+import { Button } from "@/components/ui/button"
+import { RefreshCw, Heart, Share2 } from "lucide-react"
+
+const inspirationalQuotes = [
+  {
+    text: "The journey of a thousand miles begins with one step.",
+    author: "Lao Tzu",
+  },
+  {
+    text: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    author: "Winston Churchill",
+  },
+  {
+    text: "The only way to do great work is to love what you do.",
+    author: "Steve Jobs",
+  },
+  {
+    text: "Life is what happens to you while you're busy making other plans.",
+    author: "John Lennon",
+  },
+  {
+    text: "The future belongs to those who believe in the beauty of their dreams.",
+    author: "Eleanor Roosevelt",
+  },
+  {
+    text: "It is during our darkest moments that we must focus to see the light.",
+    author: "Aristotle",
+  },
+  {
+    text: "The only impossible journey is the one you never begin.",
+    author: "Tony Robbins",
+  },
+  {
+    text: "In the middle of difficulty lies opportunity.",
+    author: "Albert Einstein",
+  },
+  {
+    text: "Believe you can and you're halfway there.",
+    author: "Theodore Roosevelt",
+  },
+  {
+    text: "The best time to plant a tree was 20 years ago. The second best time is now.",
+    author: "Chinese Proverb",
+  },
+]
 
 interface QuoteGeneratorProps {
-  user?: AuthUser | null
+  user?: any
 }
 
 export function QuoteGenerator({ user }: QuoteGeneratorProps) {
-  const [selectedTopic, setSelectedTopic] = useState<QuoteTopic>("motivation")
-  const [currentQuote, setCurrentQuote] = useState<{ quote: string; author: string } | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [favorites, setFavorites] = useState<FavoriteQuote[]>([])
+  const [currentQuote, setCurrentQuote] = useState(inspirationalQuotes[0])
+  const [isLiked, setIsLiked] = useState(false)
 
-  const supabaseQuoteService = SupabaseQuoteService.getInstance()
-  const userPreferencesService = UserPreferencesService.getInstance()
-
-  // Load favorites when user changes
-  useEffect(() => {
-    if (user) {
-      loadFavorites()
-    } else {
-      setFavorites([])
-    }
-  }, [user])
-
-  const loadFavorites = async () => {
-    if (!user) return
-    try {
-      const userFavorites = await supabaseQuoteService.getFavoriteQuotes(user.id)
-      setFavorites(userFavorites)
-    } catch (error) {
-      console.error("Error loading favorites:", error)
-    }
+  const generateNewQuote = () => {
+    const randomIndex = Math.floor(Math.random() * inspirationalQuotes.length)
+    setCurrentQuote(inspirationalQuotes[randomIndex])
+    setIsLiked(false)
   }
 
-  const handleGenerateQuote = async () => {
-    setIsGenerating(true)
-    try {
-      const quoteData = await supabaseQuoteService.generateQuote(selectedTopic)
-      setCurrentQuote(quoteData)
-      Analytics.trackQuoteGenerated(selectedTopic)
-    } catch (error) {
-      console.error("Failed to generate quote:", error)
-      Analytics.trackError("quote_generation", error instanceof Error ? error.message : "Unknown error")
-    } finally {
-      setIsGenerating(false)
-    }
+  const handleLike = () => {
+    setIsLiked(!isLiked)
   }
 
-  const handleCopyQuote = (quote?: { quote: string; author: string }) => {
-    const quoteText = quote
-      ? `"${quote.quote}" - ${quote.author}`
-      : currentQuote
-        ? `"${currentQuote.quote}" - ${currentQuote.author}`
-        : ""
-    navigator.clipboard.writeText(quoteText)
-    Analytics.trackQuoteShared("copy")
-  }
-
-  const handleShareQuote = (quote?: { quote: string; author: string }) => {
-    const quoteText = quote
-      ? `"${quote.quote}" - ${quote.author}`
-      : currentQuote
-        ? `"${currentQuote.quote}" - ${currentQuote.author}`
-        : ""
+  const handleShare = async () => {
     if (navigator.share) {
-      navigator.share({
-        title: "Inspiring Quote from MindReMinder",
-        text: quoteText,
-      })
-      Analytics.trackQuoteShared("native_share")
-    } else {
-      handleCopyQuote(quote)
-    }
-  }
-
-  const handleToggleFavorite = async (quote: string, author: string, topic: string) => {
-    if (!user) return
-
-    try {
-      const isCurrentlyFavorited = await supabaseQuoteService.isQuoteFavorited(user.id, quote)
-
-      if (isCurrentlyFavorited) {
-        const favoriteQuote = favorites.find((f) => f.content === quote)
-        if (favoriteQuote) {
-          await supabaseQuoteService.removeFavoriteQuote(user.id, favoriteQuote.id)
-          setFavorites((prev) => prev.filter((f) => f.id !== favoriteQuote.id))
-          Analytics.event("quote_unfavorited", { topic, event_category: "quotes" })
-        }
-      } else {
-        const newFavorite = await supabaseQuoteService.addFavoriteQuote(user.id, quote, author, topic)
-        setFavorites((prev) => [newFavorite, ...prev])
-        Analytics.event("quote_favorited", { topic, event_category: "quotes" })
+      try {
+        await navigator.share({
+          title: "Inspirational Quote",
+          text: `"${currentQuote.text}" - ${currentQuote.author}`,
+        })
+      } catch (error) {
+        console.log("Error sharing:", error)
       }
-    } catch (error) {
-      console.error("Error toggling favorite:", error)
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(`"${currentQuote.text}" - ${currentQuote.author}`)
     }
   }
-
-  const handleRemoveFavorite = async (quoteId: string) => {
-    if (!user) return
-    try {
-      await supabaseQuoteService.removeFavoriteQuote(user.id, quoteId)
-      setFavorites((prev) => prev.filter((f) => f.id !== quoteId))
-      Analytics.event("favorite_quote_removed", { event_category: "quotes" })
-    } catch (error) {
-      console.error("Error removing favorite:", error)
-    }
-  }
-
-  const topics = SupabaseQuoteService.getTopics()
 
   return (
-    <div className="space-y-6">
-      <Tabs defaultValue="generator" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="generator">Generate Quotes</TabsTrigger>
-          <TabsTrigger value="favorites" className="flex items-center gap-2">
-            <Heart className="h-4 w-4" />
-            Favorites ({favorites.length})
-          </TabsTrigger>
-        </TabsList>
+    <Card className="w-full max-w-2xl mx-auto">
+      <CardHeader>
+        <CardTitle className="text-center">Daily Inspiration</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="text-center space-y-4">
+          <blockquote className="text-lg md:text-xl font-medium italic text-gray-700 dark:text-gray-300">
+            "{currentQuote.text}"
+          </blockquote>
+          <cite className="text-sm text-gray-500 dark:text-gray-400">— {currentQuote.author}</cite>
+        </div>
 
-        <TabsContent value="generator" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                AI Quote Generator
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Choose a topic:</label>
-                <Select value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as QuoteTopic)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {topics.map((topic) => (
-                      <SelectItem key={topic} value={topic}>
-                        {topic.charAt(0).toUpperCase() + topic.slice(1)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <div className="flex justify-center space-x-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateNewQuote}
+            className="flex items-center space-x-2 bg-transparent"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>New Quote</span>
+          </Button>
 
-              <Button onClick={handleGenerateQuote} disabled={isGenerating} className="w-full">
-                {isGenerating ? "Generating..." : "Generate Quote"}
-              </Button>
-            </CardContent>
-          </Card>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLike}
+            className={`flex items-center space-x-2 ${isLiked ? "text-red-500" : ""}`}
+          >
+            <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
+            <span>{isLiked ? "Liked" : "Like"}</span>
+          </Button>
 
-          {currentQuote && (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <Badge variant="secondary" className="capitalize">
-                      {selectedTopic}
-                    </Badge>
-                  </div>
-
-                  <blockquote className="text-lg italic text-center py-4 px-2 border-l-4 border-primary bg-muted/50 rounded-r-lg">
-                    <p className="mb-2">"{currentQuote.quote}"</p>
-                    <footer className="text-sm font-medium text-muted-foreground">— {currentQuote.author}</footer>
-                  </blockquote>
-
-                  <div className="flex gap-2 justify-center">
-                    {user && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleToggleFavorite(currentQuote.quote, currentQuote.author, selectedTopic)}
-                      >
-                        <Heart className="h-4 w-4 mr-1" />
-                        Favorite
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" onClick={() => handleCopyQuote()}>
-                      <Copy className="h-4 w-4 mr-1" />
-                      Copy
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => handleShareQuote()}>
-                      <Share className="h-4 w-4 mr-1" />
-                      Share
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="favorites" className="space-y-6">
-          {!user ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Sign in to save favorites</h3>
-                  <p className="text-muted-foreground">Create an account to save and manage your favorite quotes</p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : favorites.length === 0 ? (
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center py-12">
-                  <Heart className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No favorite quotes yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Generate some quotes and save your favorites to see them here
-                  </p>
-                  <Button onClick={() => document.querySelector('[value="generator"]')?.click()}>
-                    Generate Your First Quote
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {favorites.map((quote) => (
-                <Card key={quote.id}>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <Badge variant="secondary" className="capitalize">
-                          {quote.topic}
-                        </Badge>
-                        <div className="text-xs text-muted-foreground">
-                          {userPreferencesService.formatDateTime(quote.createdAt)}
-                        </div>
-                      </div>
-
-                      <blockquote className="text-base italic py-3 px-2 border-l-4 border-primary bg-muted/50 rounded-r-lg">
-                        <p className="mb-2">"{quote.content}"</p>
-                        <footer className="text-sm font-medium text-muted-foreground">— {quote.author}</footer>
-                      </blockquote>
-
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopyQuote({ quote: quote.content, author: quote.author })}
-                        >
-                          <Copy className="h-4 w-4 mr-1" />
-                          Copy
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleShareQuote({ quote: quote.content, author: quote.author })}
-                        >
-                          <Share className="h-4 w-4 mr-1" />
-                          Share
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRemoveFavorite(quote.id)}
-                          className="text-destructive hover:text-destructive ml-auto"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="flex items-center space-x-2 bg-transparent"
+          >
+            <Share2 className="h-4 w-4" />
+            <span>Share</span>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

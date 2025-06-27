@@ -1,72 +1,100 @@
 "use client"
 
-import type React from "react"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { User } from "lucide-react"
-import type { UserSettings } from "@/lib/settings-service"
 
-interface ProfileDetailsFormProps {
-  settings: Partial<UserSettings>
-  onSettingsChange: (newSettings: Partial<UserSettings>) => void
+interface User {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  profileImage?: string | null
+  createdAt: string
+  emailConfirmed: boolean
 }
 
-export function ProfileDetailsForm({ settings, onSettingsChange }: ProfileDetailsFormProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    onSettingsChange({ [e.target.name]: e.target.value })
+interface UserSettings {
+  id: string
+  theme: string
+  notifications_enabled: boolean
+  email_notifications: boolean
+  push_notifications: boolean
+  reminder_sound: boolean
+  daily_summary: boolean
+  timezone: string
+  language: string
+  date_format: string
+  time_format: string
+  created_at: string
+  updated_at: string
+}
+
+interface ProfileDetailsFormProps {
+  user: User
+  settings: UserSettings
+  onSettingsChange: (settings: Partial<UserSettings>) => void
+  loading: boolean
+}
+
+export function ProfileDetailsForm({ user, settings, onSettingsChange, loading }: ProfileDetailsFormProps) {
+  const [firstName, setFirstName] = useState(user.firstName)
+  const [lastName, setLastName] = useState(user.lastName)
+  const [bio, setBio] = useState("")
+
+  const handleSave = () => {
+    // In a real app, this would update the user profile
+    console.log("Saving profile:", { firstName, lastName, bio })
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Profile Details
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="firstName">First Name</Label>
-            <Input
-              id="firstName"
-              name="firstName"
-              value={settings.firstName || ""}
-              onChange={handleChange}
-              placeholder="Your first name"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="lastName">Last Name</Label>
-            <Input
-              id="lastName"
-              name="lastName"
-              value={settings.lastName || ""}
-              onChange={handleChange}
-              placeholder="Your last name"
-            />
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" value={settings.email || ""} disabled placeholder="Your email address" />
-          <p className="text-xs text-muted-foreground">Email address cannot be changed here.</p>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="bio">Bio</Label>
-          <Textarea
-            id="bio"
-            name="bio"
-            value={settings.bio || ""}
-            onChange={handleChange}
-            placeholder="Tell us a little about yourself"
-            rows={3}
+          <Label htmlFor="firstName">First Name</Label>
+          <Input
+            id="firstName"
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            placeholder="Enter your first name"
           />
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="space-y-2">
+          <Label htmlFor="lastName">Last Name</Label>
+          <Input
+            id="lastName"
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            placeholder="Enter your last name"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" value={user.email} disabled className="bg-gray-50" />
+        <p className="text-sm text-gray-500">
+          Email cannot be changed. Status: {user.emailConfirmed ? "Verified" : "Not verified"}
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="bio">Bio</Label>
+        <Textarea
+          id="bio"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="Tell us about yourself..."
+          rows={4}
+        />
+      </div>
+
+      <Button onClick={handleSave} disabled={loading}>
+        {loading ? "Saving..." : "Save Changes"}
+      </Button>
+    </div>
   )
 }

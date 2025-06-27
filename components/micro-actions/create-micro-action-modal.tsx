@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -9,147 +10,140 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-// Removed simpleDataService import
-
-interface MicroActionFormData {
-  title: string
-  description?: string
-  category: string
-  duration: string
-  frequency: string
-  isActive: boolean
-}
 
 interface CreateMicroActionModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onMicroActionCreated: (data: MicroActionFormData) => void // Pass data back
+  isOpen: boolean
+  onClose: () => void
+  onMicroActionCreated: (microAction: any) => void
 }
 
-export function CreateMicroActionModal({ open, onOpenChange, onMicroActionCreated }: CreateMicroActionModalProps) {
+const categories = [
+  "Health & Fitness",
+  "Learning",
+  "Productivity",
+  "Mindfulness",
+  "Relationships",
+  "Creativity",
+  "Finance",
+  "Other",
+]
+
+const durations = ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 hour"]
+
+export function CreateMicroActionModal({ isOpen, onClose, onMicroActionCreated }: CreateMicroActionModalProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
   const [duration, setDuration] = useState("")
-  const [frequency, setFrequency] = useState("daily")
   const [isActive, setIsActive] = useState(true)
-  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim() || !category) return
+    setLoading(true)
 
-    setSaving(true)
     try {
-      const microActionData: MicroActionFormData = {
-        title: title.trim(),
-        description: description.trim() || undefined,
+      const newMicroAction = {
+        id: Date.now().toString(),
+        title,
+        description,
         category,
-        duration: duration || "2 minutes", // Default if empty
-        frequency,
+        duration,
         isActive,
+        isCompleted: false,
+        currentStreak: 0,
+        bestStreak: 0,
+        createdAt: new Date().toISOString(),
       }
-      onMicroActionCreated(microActionData) // Pass data back
+
+      onMicroActionCreated(newMicroAction)
 
       // Reset form
       setTitle("")
       setDescription("")
       setCategory("")
       setDuration("")
-      setFrequency("daily")
       setIsActive(true)
-      // onOpenChange(false); // Optionally close modal
+      onClose()
     } catch (error) {
-      console.error("Error in micro-action creation process:", error)
+      console.error("Error creating micro action:", error)
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create Micro-Action</DialogTitle>
+          <DialogTitle>Create New Micro Action</DialogTitle>
         </DialogHeader>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="title">Title *</Label>
+          <div className="space-y-2">
+            <Label htmlFor="title">Title</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Drink 1 glass of water"
+              placeholder="Enter micro action title"
               required
             />
           </div>
 
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Why is this important to you?"
-              rows={2}
+              placeholder="Enter micro action description (optional)"
+              rows={3}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="category">Category *</Label>
-              <Select value={category} onValueChange={setCategory} required>
-                <SelectTrigger id="category">
-                  <SelectValue placeholder="Choose category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="health">🌱 Health</SelectItem>
-                  <SelectItem value="learning">🧠 Learning</SelectItem>
-                  <SelectItem value="mindfulness">🧘 Mindfulness</SelectItem>
-                  <SelectItem value="productivity">🎯 Productivity</SelectItem>
-                  <SelectItem value="relationships">💝 Relationships</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="duration">Duration</Label>
-              <Input
-                id="duration"
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="e.g., 2 minutes"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="frequency">Frequency</Label>
-            <Select value={frequency} onValueChange={setFrequency}>
-              <SelectTrigger id="frequency">
-                <SelectValue />
+          <div className="space-y-2">
+            <Label htmlFor="category">Category</Label>
+            <Select value={category} onValueChange={setCategory} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="daily">Daily</SelectItem>
-                <SelectItem value="weekdays">Weekdays only</SelectItem>
-                <SelectItem value="weekends">Weekends only</SelectItem>
-                <SelectItem value="3x-week">3 times per week</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="flex items-center justify-between">
-            <Label htmlFor="isActive">Active Habit</Label>
-            <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
+          <div className="space-y-2">
+            <Label htmlFor="duration">Duration</Label>
+            <Select value={duration} onValueChange={setDuration} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                {durations.map((dur) => (
+                  <SelectItem key={dur} value={dur}>
+                    {dur}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <Button type="submit" className="flex-1" disabled={saving || !title.trim() || !category}>
-              {saving ? "Creating..." : "Create Micro-Action"}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+          <div className="flex items-center space-x-2">
+            <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
+            <Label htmlFor="isActive">Active</Label>
+          </div>
+
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Creating..." : "Create Micro Action"}
             </Button>
           </div>
         </form>
