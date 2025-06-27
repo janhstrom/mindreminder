@@ -10,9 +10,7 @@ import { CreateReminderModal } from "@/components/reminders/create-reminder-moda
 import { CreateMicroActionModal } from "@/components/micro-actions/create-micro-action-modal"
 import { cn } from "@/lib/utils"
 import { Sidebar } from "@/components/dashboard/sidebar"
-import type { User } from "@supabase/supabase-js"
 
-// Define types for data passed from modals
 interface ReminderFormData {
   title: string
   description?: string
@@ -55,10 +53,14 @@ interface SafeMicroAction {
   userId?: string
 }
 
-interface UserProfile extends User {
-  firstName?: string | null
-  lastName?: string | null
-  profileImage?: string | null
+interface UserProfile {
+  id: string
+  email?: string
+  user_metadata?: {
+    firstName?: string
+    lastName?: string
+    profileImage?: string
+  }
 }
 
 interface DashboardClientContentProps {
@@ -66,7 +68,7 @@ interface DashboardClientContentProps {
 }
 
 export function DashboardClientContent({ user }: DashboardClientContentProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMicroActionModal, setShowMicroActionModal] = useState(false)
   const [reminders, setReminders] = useState<SafeReminder[]>([])
@@ -74,8 +76,6 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
   const [activeTab, setActiveTab] = useState("inspiration")
 
   useEffect(() => {
-    // User object is passed as a prop, so no need to check authLoading or redirect.
-    // That's handled by the parent Server Component (DashboardPage).
     if (user) {
       try {
         const savedReminders = localStorage.getItem(`reminders_${user.id}`)
@@ -136,12 +136,13 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
       <main className={cn("flex-1 p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Welcome back, {user.firstName || "User"}!</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Welcome back, {user.user_metadata?.firstName || "User"}!
+            </h1>
             <p className="text-muted-foreground">Ready to build some amazing habits today?</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {/* Stat Cards */}
             <Card>
               <CardContent className="p-6 flex items-center">
                 <Bell className="h-8 w-8 text-blue-600 mr-4" />
@@ -200,7 +201,6 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
               </TabsTrigger>
             </TabsList>
 
-            {/* TabsContent sections... */}
             <TabsContent value="inspiration">
               <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/30 dark:to-orange-900/30 border-0 shadow-lg">
                 <CardHeader>
@@ -250,7 +250,9 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
                             </div>
                           </div>
                           <div
-                            className={`w-2 h-2 rounded-full mt-1 ${reminder.isActive ? "bg-green-500" : "bg-gray-400"}`}
+                            className={`w-2 h-2 rounded-full mt-1 ${
+                              reminder.isActive ? "bg-green-500" : "bg-gray-400"
+                            }`}
                           ></div>
                         </div>
                       </CardContent>

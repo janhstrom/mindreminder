@@ -13,7 +13,7 @@ import { NotificationSettingsCard } from "@/components/notifications/notificatio
 import { cn } from "@/lib/utils"
 import { Loader2 } from "lucide-react"
 import type { User } from "@supabase/supabase-js"
-import { logout } from "@/lib/auth/actions"
+import { signOut } from "@/lib/auth/actions"
 
 interface SettingsClientContentProps {
   user: User
@@ -24,7 +24,7 @@ export default function SettingsClientContent({ user, initialSettings }: Setting
   const { toast } = useToast()
   const router = useRouter()
 
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settings, setSettings] = useState<UserSettings>(initialSettings)
   const [isSaving, setIsSaving] = useState(false)
 
@@ -59,15 +59,25 @@ export default function SettingsClientContent({ user, initialSettings }: Setting
   }
 
   const handleLogout = async () => {
-    await logout()
+    await signOut()
     router.push("/login")
   }
 
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(initialSettings)
 
+  const userWithProfile = {
+    id: user.id,
+    email: user.email,
+    user_metadata: {
+      firstName: user.user_metadata?.firstName || user.user_metadata?.first_name || null,
+      lastName: user.user_metadata?.lastName || user.user_metadata?.last_name || null,
+      profileImage: user.user_metadata?.profileImage || user.user_metadata?.profile_image_url || null,
+    },
+  }
+
   return (
     <div className="min-h-screen bg-background">
-      <Header user={user} onLogout={handleLogout} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+      <Header user={userWithProfile} onLogout={handleLogout} />
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className={cn("flex-1 p-4 md:p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>

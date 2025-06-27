@@ -10,24 +10,26 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Bell, Moon, Sun, User, LogOutIcon, Menu } from "lucide-react"
+import { Bell, Moon, Sun, User, LogOutIcon } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useRouter } from "next/navigation"
-import type { User as SupabaseUser } from "@supabase/supabase-js"
 
-interface UserProfile extends SupabaseUser {
-  firstName?: string
-  lastName?: string
-  profileImage?: string
+interface UserProfile {
+  id: string
+  email?: string
+  user_metadata?: {
+    firstName?: string
+    lastName?: string
+    profileImage?: string
+  }
 }
 
 interface HeaderProps {
   user: UserProfile
   onLogout: () => Promise<void>
-  onMenuClick: () => void
 }
 
-export function Header({ user, onLogout, onMenuClick }: HeaderProps) {
+export function Header({ user, onLogout }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -48,12 +50,7 @@ export function Header({ user, onLogout, onMenuClick }: HeaderProps) {
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="flex h-16 items-center px-4">
-        <Button variant="ghost" size="icon" onClick={onMenuClick} className="md:hidden">
-          <Menu className="h-5 w-5" />
-          <span className="sr-only">Toggle menu</span>
-        </Button>
-
-        <div className="flex items-center space-x-2 ml-2 md:ml-0">
+        <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">MR</span>
           </div>
@@ -76,13 +73,7 @@ export function Header({ user, onLogout, onMenuClick }: HeaderProps) {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={
-                      user.user_metadata?.profileImage ||
-                      `/placeholder.svg?width=32&height=32&query=${userFirstName}+Avatar`
-                    }
-                    alt={userFirstName}
-                  />
+                  <AvatarImage src={user.user_metadata?.profileImage || undefined} alt={userFirstName} />
                   <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
               </Button>

@@ -1,37 +1,18 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import DashboardClientContent from "@/components/dashboard/dashboard-client-content"
-import type { Reminder, MicroAction } from "@/types" // Ensure these types are correctly defined
+import { signOut } from "@/lib/auth/actions"
+import { Header } from "@/components/dashboard/header"
+import { DashboardClientContent } from "@/components/dashboard/dashboard-client-content"
 
-// Placeholder: Define or import actual functions to fetch data
-// For example, from "@/lib/reminders-supabase" or "@/lib/micro-actions-service"
-async function getRemindersForUser(userId: string, supabaseClient: any): Promise<Reminder[]> {
-  // console.log(`Fetching reminders for user ${userId}...`)
-  // const { data, error } = await supabaseClient
-  //   .from('reminders')
-  //   .select('*')
-  //   .eq('user_id', userId)
-  // if (error) {
-  //   console.error("Error fetching reminders:", error)
-  //   return []
-  // }
-  // return data || []
-  return [] // Placeholder
-}
-
-async function getMicroActionsForUser(userId: string, supabaseClient: any): Promise<MicroAction[]> {
-  // console.log(`Fetching micro-actions for user ${userId}...`)
-  // const { data, error } = await supabaseClient
-  //   .from('micro_actions')
-  //   .select('*')
-  //   .eq('user_id', userId)
-  // if (error) {
-  //   console.error("Error fetching micro-actions:", error)
-  //   return []
-  // }
-  // return data || []
-  return [] // Placeholder
+interface UserProfile {
+  id: string
+  email?: string
+  user_metadata?: {
+    firstName?: string
+    lastName?: string
+    profileImage?: string
+  }
 }
 
 export default async function DashboardPage() {
@@ -43,23 +24,23 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return redirect("/login?message=Please log in to access the dashboard.")
+    return redirect("/login")
   }
 
-  let reminders: Reminder[] = []
-  let microActions: MicroAction[] = []
-
-  try {
-    reminders = await getRemindersForUser(user.id, supabase)
-  } catch (error) {
-    console.error("DashboardPage: Failed to fetch reminders:", error)
+  const userWithProfile: UserProfile = {
+    id: user.id,
+    email: user.email,
+    user_metadata: {
+      firstName: user.user_metadata?.firstName || user.user_metadata?.first_name || null,
+      lastName: user.user_metadata?.lastName || user.user_metadata?.last_name || null,
+      profileImage: user.user_metadata?.profileImage || user.user_metadata?.profile_image_url || null,
+    },
   }
 
-  try {
-    microActions = await getMicroActionsForUser(user.id, supabase)
-  } catch (error) {
-    console.error("DashboardPage: Failed to fetch micro-actions:", error)
-  }
-
-  return <DashboardClientContent user={user} reminders={reminders} microActions={microActions} />
+  return (
+    <div className="min-h-screen bg-background">
+      <Header user={userWithProfile} onLogout={signOut} />
+      <DashboardClientContent user={userWithProfile} />
+    </div>
+  )
 }
