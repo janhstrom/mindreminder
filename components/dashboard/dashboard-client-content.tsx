@@ -79,10 +79,16 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
     if (user) {
       try {
         const savedReminders = localStorage.getItem(`reminders_${user.id}`)
-        if (savedReminders) setReminders(JSON.parse(savedReminders))
+        if (savedReminders) {
+          const parsedReminders = JSON.parse(savedReminders)
+          setReminders(Array.isArray(parsedReminders) ? parsedReminders : [])
+        }
 
         const savedMicroActions = localStorage.getItem(`microActions_${user.id}`)
-        if (savedMicroActions) setMicroActions(JSON.parse(savedMicroActions))
+        if (savedMicroActions) {
+          const parsedMicroActions = JSON.parse(savedMicroActions)
+          setMicroActions(Array.isArray(parsedMicroActions) ? parsedMicroActions : [])
+        }
       } catch (error) {
         console.error("Error loading data from localStorage:", error)
         setReminders([])
@@ -123,11 +129,15 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
     setShowMicroActionModal(false)
   }
 
+  // Safe stats calculation with null checks
   const stats = {
-    activeReminders: reminders.filter((r) => r.isActive).length,
-    activeHabits: microActions.filter((m) => m.isActive).length,
-    bestStreak: Math.max(0, ...microActions.map((m) => m.bestStreak)),
-    completedToday: microActions.filter((m) => m.completedToday).length,
+    activeReminders: reminders.filter((r) => r && r.isActive === true).length,
+    activeHabits: microActions.filter((m) => m && m.isActive === true).length,
+    bestStreak: Math.max(
+      0,
+      ...microActions.filter((m) => m && typeof m.bestStreak === "number").map((m) => m.bestStreak),
+    ),
+    completedToday: microActions.filter((m) => m && m.completedToday === true).length,
   }
 
   return (
@@ -233,31 +243,33 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
               </div>
               {reminders.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {reminders.map((reminder) => (
-                    <Card key={reminder.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold mb-1">{reminder.title}</h3>
-                            {reminder.description && (
-                              <p className="text-sm text-muted-foreground mb-2">{reminder.description}</p>
-                            )}
-                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {new Date(reminder.createdAt).toLocaleDateString()}
-                              </span>
+                  {reminders
+                    .filter((reminder) => reminder && reminder.id)
+                    .map((reminder) => (
+                      <Card key={reminder.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="font-semibold mb-1">{reminder.title}</h3>
+                              {reminder.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{reminder.description}</p>
+                              )}
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {new Date(reminder.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
                             </div>
+                            <div
+                              className={`w-2 h-2 rounded-full mt-1 ${
+                                reminder.isActive ? "bg-green-500" : "bg-gray-400"
+                              }`}
+                            ></div>
                           </div>
-                          <div
-                            className={`w-2 h-2 rounded-full mt-1 ${
-                              reminder.isActive ? "bg-green-500" : "bg-gray-400"
-                            }`}
-                          ></div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               ) : (
                 <Card>
@@ -287,35 +299,37 @@ export function DashboardClientContent({ user }: DashboardClientContentProps) {
               </div>
               {microActions.length > 0 ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {microActions.map((action) => (
-                    <Card key={action.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <h3 className="font-semibold">{action.title}</h3>
-                              <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
-                                {action.category}
-                              </span>
+                  {microActions
+                    .filter((action) => action && action.id)
+                    .map((action) => (
+                      <Card key={action.id}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold">{action.title}</h3>
+                                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">
+                                  {action.category}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <TrendingUp className="h-4 w-4" />
+                                  {action.currentStreak} day streak
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4" />
+                                  {action.duration}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <TrendingUp className="h-4 w-4" />
-                                {action.currentStreak} day streak
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4" />
-                                {action.duration}
-                              </span>
-                            </div>
+                            <Button size="sm" variant="outline">
+                              Mark Done
+                            </Button>
                           </div>
-                          <Button size="sm" variant="outline">
-                            Mark Done
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               ) : (
                 <Card>

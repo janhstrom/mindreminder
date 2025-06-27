@@ -1,117 +1,133 @@
 "use client"
 
-import { useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { SettingsService, type UserSettings } from "@/lib/settings-service"
-import { Button } from "@/components/ui/button"
-import { useToast } from "@/components/ui/use-toast"
-import { Header } from "@/components/dashboard/header"
-import { Sidebar } from "@/components/dashboard/sidebar"
-import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
-import { UserPreferencesCard } from "@/components/settings/user-preferences"
-import { NotificationSettingsCard } from "@/components/notifications/notification-settings"
+import { useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { toast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { Loader2 } from "lucide-react"
-import type { User } from "@supabase/supabase-js"
+import { Sidebar } from "@/components/dashboard/sidebar"
+import { Header } from "@/components/dashboard/header"
+import { ProfileDetailsForm } from "@/components/settings/profile-details-form"
+import { UserPreferences } from "@/components/settings/user-preferences"
+import { NotificationSettings } from "@/components/notifications/notification-settings"
+import { SettingsService } from "@/lib/settings-service"
 import { signOut } from "@/lib/auth/actions"
+import type { UserSettings } from "@/types"
+
+interface UserProfile {
+  id: string
+  email?: string
+  user_metadata?: {
+    firstName?: string
+    lastName?: string
+    profileImage?: string
+  }
+}
 
 interface SettingsClientContentProps {
-  user: User
+  user: UserProfile
   initialSettings: UserSettings
 }
 
-export default function SettingsClientContent({ user, initialSettings }: SettingsClientContentProps) {
-  const { toast } = useToast()
-  const router = useRouter()
-
+export function SettingsClientContent({ user, initialSettings }: SettingsClientContentProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settings, setSettings] = useState<UserSettings>(initialSettings)
-  const [isSaving, setIsSaving] = useState(false)
-
-  const handleSettingsChange = useCallback((newSettings: Partial<UserSettings>) => {
-    const { profileImage, ...restOfSettings } = newSettings as any
-    setSettings((prev) => ({ ...prev, ...restOfSettings }))
-  }, [])
-
-  const handleSave = async () => {
-    if (!settings || !user) return
-    setIsSaving(true)
-    try {
-      await SettingsService.saveSettings(settings, user.id)
-      toast({
-        title: "Success!",
-        description: "Your settings have been saved.",
-      })
-    } catch (error) {
-      console.error("Failed to save settings:", error)
-      toast({
-        title: "Error",
-        description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleReset = () => {
-    setSettings(initialSettings)
-  }
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleLogout = async () => {
     await signOut()
-    router.push("/login")
   }
 
-  const hasChanges = JSON.stringify(settings) !== JSON.stringify(initialSettings)
-
-  const userWithProfile = {
-    id: user.id,
-    email: user.email,
-    user_metadata: {
-      firstName: user.user_metadata?.firstName || user.user_metadata?.first_name || null,
-      lastName: user.user_metadata?.lastName || user.user_metadata?.last_name || null,
-      profileImage: user.user_metadata?.profileImage || user.user_metadata?.profile_image_url || null,
-    },
+  const handleSettingsChange = async (newSettings: Partial<UserSettings>) => {
+    setIsLoading(true)
+    try {
+      const updatedSettings = { ...settings, ...newSettings }
+      await SettingsService.updateSettings(user.id, updatedSettings)
+      setSettings(updatedSettings)
+      toast({
+        title: "Settings updated",
+        description: "Your settings have been saved successfully.",
+      })
+    } catch (error) {
+      console.error("Failed to update settings:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update settings. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <Header user={userWithProfile} onLogout={handleLogout} />
+      <Header user={user} onLogout={handleLogout} onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       <div className="flex">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className={cn("flex-1 p-4 md:p-6 transition-all duration-300", sidebarOpen ? "md:ml-64" : "ml-0")}>
           <div className="max-w-4xl mx-auto space-y-8">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold">Settings</h1>
-                <p className="text-muted-foreground">Manage your account and preferences.</p>
-              </div>
-              {hasChanges && (
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={handleReset} disabled={isSaving}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Save Changes
-                  </Button>
-                </div>
-              )}
+            <div>
+              <h1 className="text-3xl font-bold">Settings</h1>
+              <p className="text-muted-foreground">Manage your account settings and preferences.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-1 space-y-8">
-                <p className="text-sm text-muted-foreground p-4 border rounded-md">
-                  Profile image upload temporarily disabled for debugging.
-                </p>
-              </div>
-              <div className="lg:col-span-2 space-y-8">
-                <ProfileDetailsForm settings={settings} onSettingsChange={handleSettingsChange} />
-                <UserPreferencesCard />
-                <NotificationSettingsCard />
-              </div>
-            </div>
+            <Tabs defaultValue="profile" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="profile">Profile</TabsTrigger>
+                <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                <TabsTrigger value="notifications">Notifications</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="profile" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Profile Information</CardTitle>
+                    <CardDescription>Update your personal information and profile details.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ProfileDetailsForm
+                      user={user}
+                      settings={settings}
+                      onSettingsChange={handleSettingsChange}
+                      isLoading={isLoading}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="preferences" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>User Preferences</CardTitle>
+                    <CardDescription>Customize your app experience with these preferences.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <UserPreferences
+                      settings={settings}
+                      onSettingsChange={handleSettingsChange}
+                      isLoading={isLoading}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="notifications" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Notification Settings</CardTitle>
+                    <CardDescription>Configure how and when you receive notifications.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <NotificationSettings
+                      settings={settings}
+                      onSettingsChange={handleSettingsChange}
+                      isLoading={isLoading}
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>
