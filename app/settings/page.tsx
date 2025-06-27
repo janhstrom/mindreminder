@@ -1,19 +1,8 @@
 import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
 import { SettingsService } from "@/lib/settings-service"
 import { SettingsClientContent } from "@/components/settings/settings-client-content"
-import type { UserSettings } from "@/types"
-
-interface UserProfile {
-  id: string
-  email?: string
-  user_metadata?: {
-    firstName?: string
-    lastName?: string
-    profileImage?: string
-  }
-}
 
 export default async function SettingsPage() {
   const cookieStore = cookies()
@@ -21,41 +10,49 @@ export default async function SettingsPage() {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    return redirect("/login?message=Please log in to access settings.")
+  if (userError || !user) {
+    redirect("/login")
   }
 
-  const userWithProfile: UserProfile = {
+  // Get user profile
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+
+  const userData = {
     id: user.id,
-    email: user.email,
-    user_metadata: {
-      firstName: user.user_metadata?.firstName || user.user_metadata?.first_name || null,
-      lastName: user.user_metadata?.lastName || user.user_metadata?.last_name || null,
-      profileImage: user.user_metadata?.profileImage || user.user_metadata?.profile_image_url || null,
-    },
+    email: user.email || "",
+    firstName: profile?.first_name || user.user_metadata?.first_name || "",
+    lastName: profile?.last_name || user.user_metadata?.last_name || "",
+    profileImage: profile?.profile_image || user.user_metadata?.profile_image || null,
+    createdAt: user.created_at,
+    emailConfirmed: !!user.email_confirmed_at,
   }
 
-  let settings: UserSettings
+  // Fetch user settings
+  let settings
   try {
     settings = await SettingsService.getSettings(user.id)
   } catch (error) {
-    console.error("SettingsPage: Failed to fetch settings:", error)
-    // Provide fallback settings
+    console.error("Error fetching settings:", error)
+    // Provide default settings if fetch fails
     settings = {
-      userId: user.id,
+      id: user.id,
       theme: "system",
-      notifications: true,
-      emailNotifications: true,
+      notifications_enabled: true,
+      email_notifications: true,
+      push_notifications: false,
+      reminder_sound: true,
+      daily_summary: true,
       timezone: "UTC",
       language: "en",
-      dateFormat: "MM/dd/yyyy",
-      timeFormat: "12h",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      date_format: "MM/dd/yyyy",
+      time_format: "12h",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
   }
 
-  return <SettingsClientContent user={userWithProfile} initialSettings={settings} />
+  return <SettingsClientContent user={userData} initialSettings={settings} />
 }

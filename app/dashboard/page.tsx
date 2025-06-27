@@ -1,19 +1,7 @@
 import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { signOut } from "@/lib/auth/actions"
-import { Header } from "@/components/dashboard/header"
+import { redirect } from "next/navigation"
 import { DashboardClientContent } from "@/components/dashboard/dashboard-client-content"
-
-interface UserProfile {
-  id: string
-  email?: string
-  user_metadata?: {
-    firstName?: string
-    lastName?: string
-    profileImage?: string
-  }
-}
 
 export default async function DashboardPage() {
   const cookieStore = cookies()
@@ -21,26 +9,25 @@ export default async function DashboardPage() {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
 
-  if (!user) {
-    return redirect("/login")
+  if (userError || !user) {
+    redirect("/login")
   }
 
-  const userWithProfile: UserProfile = {
+  // Get user profile
+  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+
+  const userData = {
     id: user.id,
-    email: user.email,
-    user_metadata: {
-      firstName: user.user_metadata?.firstName || user.user_metadata?.first_name || null,
-      lastName: user.user_metadata?.lastName || user.user_metadata?.last_name || null,
-      profileImage: user.user_metadata?.profileImage || user.user_metadata?.profile_image_url || null,
-    },
+    email: user.email || "",
+    firstName: profile?.first_name || user.user_metadata?.first_name || "",
+    lastName: profile?.last_name || user.user_metadata?.last_name || "",
+    profileImage: profile?.profile_image || user.user_metadata?.profile_image || null,
+    createdAt: user.created_at,
+    emailConfirmed: !!user.email_confirmed_at,
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header user={userWithProfile} onLogout={signOut} />
-      <DashboardClientContent user={userWithProfile} />
-    </div>
-  )
+  return <DashboardClientContent user={userData} />
 }
