@@ -1,11 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = createClient()
 
     const {
       data: { user },
@@ -18,22 +16,12 @@ export async function GET(request: NextRequest) {
 
     const { data: profile, error } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
-    if (error && error.code !== "PGRST116") {
+    if (error) {
       console.error("Error fetching profile:", error)
       return NextResponse.json({ error: "Failed to fetch profile" }, { status: 500 })
     }
 
-    const userData = {
-      id: user.id,
-      email: user.email || "",
-      firstName: profile?.first_name || user.user_metadata?.first_name || "",
-      lastName: profile?.last_name || user.user_metadata?.last_name || "",
-      profileImage: profile?.profile_image || user.user_metadata?.profile_image || null,
-      createdAt: user.created_at,
-      emailConfirmed: !!user.email_confirmed_at,
-    }
-
-    return NextResponse.json({ user: userData })
+    return NextResponse.json({ profile })
   } catch (error) {
     console.error("API error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -42,8 +30,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = createClient()
 
     const {
       data: { user },
@@ -55,18 +42,18 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { firstName, lastName, profileImage } = body
+    const { firstName, lastName, email, profileImage } = body
 
     const { data: profile, error } = await supabase
       .from("profiles")
-      .upsert({
-        id: user.id,
+      .update({
         first_name: firstName,
         last_name: lastName,
+        email,
         profile_image: profileImage,
-        email: user.email,
         updated_at: new Date().toISOString(),
       })
+      .eq("id", user.id)
       .select()
       .single()
 

@@ -1,11 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { cookies } from "next/headers"
 import { createClient } from "@/lib/supabase/server"
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = createClient()
 
     const {
       data: { user },
@@ -27,7 +25,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch reminders" }, { status: 500 })
     }
 
-    return NextResponse.json({ reminders: reminders || [] })
+    return NextResponse.json({ reminders })
   } catch (error) {
     console.error("API error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
@@ -36,8 +34,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = cookies()
-    const supabase = createClient(cookieStore)
+    const supabase = createClient()
 
     const {
       data: { user },
@@ -49,18 +46,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, image, scheduledTime, location, isActive } = body
+    const { title, description, scheduledTime, isActive = true } = body
+
+    if (!title) {
+      return NextResponse.json({ error: "Title is required" }, { status: 400 })
+    }
 
     const { data: reminder, error } = await supabase
       .from("reminders")
       .insert({
         user_id: user.id,
         title,
-        description: description || null,
-        image: image || null,
-        scheduled_time: scheduledTime ? new Date(scheduledTime).toISOString() : null,
-        location: location || null,
-        is_active: isActive !== undefined ? isActive : true,
+        description,
+        scheduled_time: scheduledTime,
+        is_active: isActive,
       })
       .select()
       .single()
