@@ -3,63 +3,63 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus } from "lucide-react"
 
 interface CreateReminderModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onReminderCreated: (reminder: any) => void
+  open: boolean
+  onOpenChange: (open: boolean) => void
 }
 
-export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: CreateReminderModalProps) {
+export function CreateReminderModal({ open, onOpenChange }: CreateReminderModalProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [scheduledTime, setScheduledTime] = useState("")
-  const [isRecurring, setIsRecurring] = useState(false)
-  const [frequency, setFrequency] = useState("daily")
-  const [isActive, setIsActive] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setIsLoading(true)
 
-    const newReminder = {
-      id: Date.now().toString(),
-      title,
-      description,
-      scheduledTime: scheduledTime ? new Date(scheduledTime).toISOString() : null,
-      isRecurring,
-      frequency: isRecurring ? frequency : null,
-      isActive,
-      createdAt: new Date().toISOString(),
+    try {
+      const response = await fetch("/api/reminders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          scheduledTime: scheduledTime || null,
+          isActive: true,
+        }),
+      })
+
+      if (response.ok) {
+        setTitle("")
+        setDescription("")
+        setScheduledTime("")
+        onOpenChange(false)
+      } else {
+        console.error("Failed to create reminder")
+      }
+    } catch (error) {
+      console.error("Error creating reminder:", error)
+    } finally {
+      setIsLoading(false)
     }
-
-    onReminderCreated(newReminder)
-
-    // Reset form
-    setTitle("")
-    setDescription("")
-    setScheduledTime("")
-    setIsRecurring(false)
-    setFrequency("daily")
-    setIsActive(true)
-
-    onClose()
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Create New Reminder</DialogTitle>
+          <DialogDescription>Set up a reminder to help you stay on track with your goals.</DialogDescription>
         </DialogHeader>
-
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
@@ -71,18 +71,16 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
               required
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter reminder description"
+              placeholder="Enter reminder description (optional)"
               rows={3}
             />
           </div>
-
           <div className="space-y-2">
             <Label htmlFor="scheduledTime">Scheduled Time</Label>
             <Input
@@ -92,40 +90,12 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
               onChange={(e) => setScheduledTime(e.target.value)}
             />
           </div>
-
-          <div className="flex items-center space-x-2">
-            <Switch id="isRecurring" checked={isRecurring} onCheckedChange={setIsRecurring} />
-            <Label htmlFor="isRecurring">Recurring reminder</Label>
-          </div>
-
-          {isRecurring && (
-            <div className="space-y-2">
-              <Label htmlFor="frequency">Frequency</Label>
-              <Select value={frequency} onValueChange={setFrequency}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select frequency" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="flex items-center space-x-2">
-            <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
-            <Label htmlFor="isActive">Active</Label>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex justify-end space-x-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Reminder
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Creating..." : "Create Reminder"}
             </Button>
           </div>
         </form>

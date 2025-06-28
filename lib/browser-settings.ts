@@ -21,8 +21,8 @@ export function getBrowserInfo(): BrowserInfo {
         "Click the link above or go to Chrome Settings",
         "Navigate to Privacy and security → Site Settings → Notifications",
         "Find MindReMinder in the list and change to 'Allow'",
-        "Refresh this page and try again"
-      ]
+        "Refresh this page and try again",
+      ],
     }
   }
 
@@ -35,8 +35,8 @@ export function getBrowserInfo(): BrowserInfo {
         "Scroll down to 'Permissions' section",
         "Click 'Settings...' next to Notifications",
         "Find MindReMinder and change to 'Allow'",
-        "Refresh this page and try again"
-      ]
+        "Refresh this page and try again",
+      ],
     }
   }
 
@@ -47,8 +47,8 @@ export function getBrowserInfo(): BrowserInfo {
         "Go to Safari → Preferences → Websites",
         "Click on 'Notifications' in the left sidebar",
         "Find MindReMinder and change to 'Allow'",
-        "Refresh this page and try again"
-      ]
+        "Refresh this page and try again",
+      ],
     }
   }
 
@@ -60,8 +60,8 @@ export function getBrowserInfo(): BrowserInfo {
         "Click the link above or go to Edge Settings",
         "Navigate to Cookies and site permissions → Notifications",
         "Find MindReMinder in the list and change to 'Allow'",
-        "Refresh this page and try again"
-      ]
+        "Refresh this page and try again",
+      ],
     }
   }
 
@@ -71,8 +71,8 @@ export function getBrowserInfo(): BrowserInfo {
       "Go to your browser settings",
       "Look for 'Notifications' or 'Site permissions'",
       "Find MindReMinder and change to 'Allow'",
-      "Refresh this page and try again"
-    ]
+      "Refresh this page and try again",
+    ],
   }
 }
 
@@ -80,7 +80,7 @@ export function openBrowserSettings(): void {
   const browserInfo = getBrowserInfo()
   if (browserInfo.settingsUrl) {
     try {
-      window.open(browserInfo.settingsUrl, '_blank')
+      window.open(browserInfo.settingsUrl, "_blank")
     } catch (error) {
       console.warn("Could not open browser settings automatically")
     }
