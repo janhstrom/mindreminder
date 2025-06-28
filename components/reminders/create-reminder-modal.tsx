@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Plus } from "lucide-react"
 
 interface CreateReminderModalProps {
   isOpen: boolean
@@ -20,37 +22,35 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [scheduledTime, setScheduledTime] = useState("")
+  const [isRecurring, setIsRecurring] = useState(false)
+  const [frequency, setFrequency] = useState("daily")
   const [isActive, setIsActive] = useState(true)
-  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
 
-    try {
-      const newReminder = {
-        id: Date.now().toString(),
-        title,
-        description,
-        scheduledTime: scheduledTime || null,
-        isActive,
-        completed: false,
-        createdAt: new Date().toISOString(),
-      }
-
-      onReminderCreated(newReminder)
-
-      // Reset form
-      setTitle("")
-      setDescription("")
-      setScheduledTime("")
-      setIsActive(true)
-      onClose()
-    } catch (error) {
-      console.error("Error creating reminder:", error)
-    } finally {
-      setLoading(false)
+    const newReminder = {
+      id: Date.now().toString(),
+      title,
+      description,
+      scheduledTime: scheduledTime ? new Date(scheduledTime).toISOString() : null,
+      isRecurring,
+      frequency: isRecurring ? frequency : null,
+      isActive,
+      createdAt: new Date().toISOString(),
     }
+
+    onReminderCreated(newReminder)
+
+    // Reset form
+    setTitle("")
+    setDescription("")
+    setScheduledTime("")
+    setIsRecurring(false)
+    setFrequency("daily")
+    setIsActive(true)
+
+    onClose()
   }
 
   return (
@@ -59,6 +59,7 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
         <DialogHeader>
           <DialogTitle>Create New Reminder</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
@@ -77,7 +78,7 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter reminder description (optional)"
+              placeholder="Enter reminder description"
               rows={3}
             />
           </div>
@@ -93,6 +94,27 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
           </div>
 
           <div className="flex items-center space-x-2">
+            <Switch id="isRecurring" checked={isRecurring} onCheckedChange={setIsRecurring} />
+            <Label htmlFor="isRecurring">Recurring reminder</Label>
+          </div>
+
+          {isRecurring && (
+            <div className="space-y-2">
+              <Label htmlFor="frequency">Frequency</Label>
+              <Select value={frequency} onValueChange={setFrequency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select frequency" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="flex items-center space-x-2">
             <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
             <Label htmlFor="isActive">Active</Label>
           </div>
@@ -101,8 +123,9 @@ export function CreateReminderModal({ isOpen, onClose, onReminderCreated }: Crea
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Reminder"}
+            <Button type="submit">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Reminder
             </Button>
           </div>
         </form>

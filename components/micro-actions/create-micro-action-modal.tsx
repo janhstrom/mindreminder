@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { Plus, Target } from "lucide-react"
 
 interface CreateMicroActionModalProps {
   isOpen: boolean
@@ -19,65 +20,59 @@ interface CreateMicroActionModalProps {
 
 const categories = [
   "Health & Fitness",
-  "Learning",
+  "Learning & Growth",
   "Productivity",
-  "Mindfulness",
   "Relationships",
+  "Mindfulness",
   "Creativity",
   "Finance",
+  "Career",
   "Other",
 ]
-
-const durations = ["1 minute", "2 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 hour"]
 
 export function CreateMicroActionModal({ isOpen, onClose, onMicroActionCreated }: CreateMicroActionModalProps) {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("")
-  const [duration, setDuration] = useState("")
-  const [isActive, setIsActive] = useState(true)
-  const [loading, setLoading] = useState(false)
+  const [estimatedMinutes, setEstimatedMinutes] = useState("")
+  const [isCompleted, setIsCompleted] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
 
-    try {
-      const newMicroAction = {
-        id: Date.now().toString(),
-        title,
-        description,
-        category,
-        duration,
-        isActive,
-        isCompleted: false,
-        currentStreak: 0,
-        bestStreak: 0,
-        createdAt: new Date().toISOString(),
-      }
-
-      onMicroActionCreated(newMicroAction)
-
-      // Reset form
-      setTitle("")
-      setDescription("")
-      setCategory("")
-      setDuration("")
-      setIsActive(true)
-      onClose()
-    } catch (error) {
-      console.error("Error creating micro action:", error)
-    } finally {
-      setLoading(false)
+    const newMicroAction = {
+      id: Date.now().toString(),
+      title,
+      description,
+      category,
+      estimatedMinutes: estimatedMinutes ? Number.parseInt(estimatedMinutes) : null,
+      isCompleted,
+      createdAt: new Date().toISOString(),
+      completedAt: isCompleted ? new Date().toISOString() : null,
     }
+
+    onMicroActionCreated(newMicroAction)
+
+    // Reset form
+    setTitle("")
+    setDescription("")
+    setCategory("")
+    setEstimatedMinutes("")
+    setIsCompleted(false)
+
+    onClose()
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Micro Action</DialogTitle>
+          <DialogTitle className="flex items-center">
+            <Target className="h-5 w-5 mr-2" />
+            Create Micro Action
+          </DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
@@ -85,7 +80,7 @@ export function CreateMicroActionModal({ isOpen, onClose, onMicroActionCreated }
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter micro action title"
+              placeholder="e.g., Drink a glass of water"
               required
             />
           </div>
@@ -96,14 +91,14 @@ export function CreateMicroActionModal({ isOpen, onClose, onMicroActionCreated }
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter micro action description (optional)"
+              placeholder="Describe your micro action..."
               rows={3}
             />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={category} onValueChange={setCategory} required>
+            <Select value={category} onValueChange={setCategory}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
@@ -118,32 +113,30 @@ export function CreateMicroActionModal({ isOpen, onClose, onMicroActionCreated }
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="duration">Duration</Label>
-            <Select value={duration} onValueChange={setDuration} required>
-              <SelectTrigger>
-                <SelectValue placeholder="Select duration" />
-              </SelectTrigger>
-              <SelectContent>
-                {durations.map((dur) => (
-                  <SelectItem key={dur} value={dur}>
-                    {dur}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="estimatedMinutes">Estimated Time (minutes)</Label>
+            <Input
+              id="estimatedMinutes"
+              type="number"
+              value={estimatedMinutes}
+              onChange={(e) => setEstimatedMinutes(e.target.value)}
+              placeholder="e.g., 5"
+              min="1"
+              max="60"
+            />
           </div>
 
           <div className="flex items-center space-x-2">
-            <Switch id="isActive" checked={isActive} onCheckedChange={setIsActive} />
-            <Label htmlFor="isActive">Active</Label>
+            <Switch id="isCompleted" checked={isCompleted} onCheckedChange={setIsCompleted} />
+            <Label htmlFor="isCompleted">Mark as completed</Label>
           </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Micro Action"}
+            <Button type="submit">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Action
             </Button>
           </div>
         </form>
