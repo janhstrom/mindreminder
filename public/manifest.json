@@ -1,31 +1,49 @@
 {
-  "name": "MindReMinder",
+  "name": "MindReMinder - Never Forget What Matters Most",
   "short_name": "MindReMinder",
-  "description": "Build life-changing habits through micro-actions",
-  "start_url": "/dashboard",
+  "description": "Your intelligent companion for meaningful reminders and AI-powered inspiration",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "theme_color": "#8b5cf6",
   "orientation": "portrait-primary",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable any"
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
-  "categories": ["productivity", "lifestyle", "health"],
+  "categories": ["productivity", "lifestyle", "utilities"],
   "screenshots": [
     {
-      "src": "/og-image.png",
-      "sizes": "1200x630",
+      "src": "/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-desktop.png",
+      "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide"
     }

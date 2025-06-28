@@ -1,10 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@supabase/auth-helpers-nextjs"
+
+// ✅ Correct: import your browser helper
+import { createClient } from "@/lib/supabase/client"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -13,10 +13,8 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const router = useRouter()
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  )
+  // ✅ Use your helper, not raw createBrowserClient
+  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -24,7 +22,7 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
@@ -35,6 +33,7 @@ export default function LoginPage() {
         router.push("/dashboard")
       }
     } catch (err) {
+      console.error(err)
       setError("Login failed")
     } finally {
       setLoading(false)
@@ -45,7 +44,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">Sign in to MindReMinder</h2>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Sign in to MindReMinder
+          </h2>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="rounded-md shadow-sm -space-y-px">
@@ -71,7 +72,9 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
+          {error && (
+            <div className="text-red-600 text-sm text-center">{error}</div>
+          )}
 
           <div>
             <button
