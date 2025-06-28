@@ -1,7 +1,10 @@
 "use client"
 
+import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Save } from "lucide-react"
 
 interface UserSettings {
   id: string
@@ -26,140 +29,148 @@ interface UserPreferencesProps {
 }
 
 const timezones = [
-  "UTC",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-  "Europe/London",
-  "Europe/Paris",
-  "Asia/Tokyo",
-  "Asia/Shanghai",
-  "Australia/Sydney",
+  { value: "UTC", label: "UTC" },
+  { value: "America/New_York", label: "Eastern Time" },
+  { value: "America/Chicago", label: "Central Time" },
+  { value: "America/Denver", label: "Mountain Time" },
+  { value: "America/Los_Angeles", label: "Pacific Time" },
+  { value: "Europe/London", label: "London" },
+  { value: "Europe/Paris", label: "Paris" },
+  { value: "Asia/Tokyo", label: "Tokyo" },
+  { value: "Asia/Shanghai", label: "Shanghai" },
+  { value: "Australia/Sydney", label: "Sydney" },
 ]
 
 const languages = [
-  { code: "en", name: "English" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "de", name: "German" },
-  { code: "it", name: "Italian" },
-  { code: "pt", name: "Portuguese" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "zh", name: "Chinese" },
+  { value: "en", label: "English" },
+  { value: "es", label: "Spanish" },
+  { value: "fr", label: "French" },
+  { value: "de", label: "German" },
+  { value: "it", label: "Italian" },
+  { value: "pt", label: "Portuguese" },
+  { value: "ja", label: "Japanese" },
+  { value: "ko", label: "Korean" },
+  { value: "zh", label: "Chinese" },
 ]
 
-const dateFormats = ["MM/dd/yyyy", "dd/MM/yyyy", "yyyy-MM-dd", "MMM dd, yyyy", "dd MMM yyyy"]
+const dateFormats = [
+  { value: "MM/dd/yyyy", label: "MM/DD/YYYY (US)" },
+  { value: "dd/MM/yyyy", label: "DD/MM/YYYY (EU)" },
+  { value: "yyyy-MM-dd", label: "YYYY-MM-DD (ISO)" },
+  { value: "dd MMM yyyy", label: "DD MMM YYYY" },
+]
 
-const timeFormats = ["12h", "24h"]
-
-const themes = ["light", "dark", "system"]
+const timeFormats = [
+  { value: "12h", label: "12 Hour (AM/PM)" },
+  { value: "24h", label: "24 Hour" },
+]
 
 export function UserPreferences({ settings, onSettingsChange, loading }: UserPreferencesProps) {
+  const handleSave = () => {
+    // Settings are automatically saved when changed
+    console.log("Preferences saved")
+  }
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="theme">Theme</Label>
-          <Select
-            value={settings.theme}
-            onValueChange={(value) => onSettingsChange({ theme: value })}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select theme" />
-            </SelectTrigger>
-            <SelectContent>
-              {themes.map((theme) => (
-                <SelectItem key={theme} value={theme}>
-                  {theme.charAt(0).toUpperCase() + theme.slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Display & Format</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="theme">Theme</Label>
+            <Select value={settings.theme} onValueChange={(value) => onSettingsChange({ theme: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="dark">Dark</SelectItem>
+                <SelectItem value="system">System</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="language">Language</Label>
-          <Select
-            value={settings.language}
-            onValueChange={(value) => onSettingsChange({ language: value })}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select language" />
-            </SelectTrigger>
-            <SelectContent>
-              {languages.map((lang) => (
-                <SelectItem key={lang.code} value={lang.code}>
-                  {lang.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="language">Language</Label>
+            <Select value={settings.language} onValueChange={(value) => onSettingsChange({ language: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang.value} value={lang.value}>
+                    {lang.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="timezone">Timezone</Label>
-          <Select
-            value={settings.timezone}
-            onValueChange={(value) => onSettingsChange({ timezone: value })}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select timezone" />
-            </SelectTrigger>
-            <SelectContent>
-              {timezones.map((tz) => (
-                <SelectItem key={tz} value={tz}>
-                  {tz}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="timezone">Timezone</Label>
+            <Select value={settings.timezone} onValueChange={(value) => onSettingsChange({ timezone: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select timezone" />
+              </SelectTrigger>
+              <SelectContent>
+                {timezones.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="space-y-2">
-          <Label htmlFor="dateFormat">Date Format</Label>
-          <Select
-            value={settings.date_format}
-            onValueChange={(value) => onSettingsChange({ date_format: value })}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select date format" />
-            </SelectTrigger>
-            <SelectContent>
-              {dateFormats.map((format) => (
-                <SelectItem key={format} value={format}>
-                  {format}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Date & Time Format</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="dateFormat">Date Format</Label>
+            <Select value={settings.date_format} onValueChange={(value) => onSettingsChange({ date_format: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select date format" />
+              </SelectTrigger>
+              <SelectContent>
+                {dateFormats.map((format) => (
+                  <SelectItem key={format.value} value={format.value}>
+                    {format.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="timeFormat">Time Format</Label>
-          <Select
-            value={settings.time_format}
-            onValueChange={(value) => onSettingsChange({ time_format: value })}
-            disabled={loading}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select time format" />
-            </SelectTrigger>
-            <SelectContent>
-              {timeFormats.map((format) => (
-                <SelectItem key={format} value={format}>
-                  {format === "12h" ? "12 Hour" : "24 Hour"}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="timeFormat">Time Format</Label>
+            <Select value={settings.time_format} onValueChange={(value) => onSettingsChange({ time_format: value })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select time format" />
+              </SelectTrigger>
+              <SelectContent>
+                {timeFormats.map((format) => (
+                  <SelectItem key={format.value} value={format.value}>
+                    {format.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="pt-4">
+            <Button onClick={handleSave} disabled={loading}>
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? "Saving..." : "Save Preferences"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

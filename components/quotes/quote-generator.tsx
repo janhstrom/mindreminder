@@ -7,14 +7,6 @@ import { RefreshCw, Heart, Share2 } from "lucide-react"
 
 const inspirationalQuotes = [
   {
-    text: "The journey of a thousand miles begins with one step.",
-    author: "Lao Tzu",
-  },
-  {
-    text: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
-    author: "Winston Churchill",
-  },
-  {
     text: "The only way to do great work is to love what you do.",
     author: "Steve Jobs",
   },
@@ -35,24 +27,28 @@ const inspirationalQuotes = [
     author: "Tony Robbins",
   },
   {
-    text: "In the middle of difficulty lies opportunity.",
-    author: "Albert Einstein",
+    text: "Success is not final, failure is not fatal: it is the courage to continue that counts.",
+    author: "Winston Churchill",
   },
   {
-    text: "Believe you can and you're halfway there.",
-    author: "Theodore Roosevelt",
+    text: "The way to get started is to quit talking and begin doing.",
+    author: "Walt Disney",
   },
   {
-    text: "The best time to plant a tree was 20 years ago. The second best time is now.",
-    author: "Chinese Proverb",
+    text: "Don't let yesterday take up too much of today.",
+    author: "Will Rogers",
+  },
+  {
+    text: "You learn more from failure than from success. Don't let it stop you. Failure builds character.",
+    author: "Unknown",
+  },
+  {
+    text: "If you are working on something that you really care about, you don't have to be pushed. The vision pulls you.",
+    author: "Steve Jobs",
   },
 ]
 
-interface QuoteGeneratorProps {
-  user?: any
-}
-
-export function QuoteGenerator({ user }: QuoteGeneratorProps) {
+export function QuoteGenerator() {
   const [currentQuote, setCurrentQuote] = useState(inspirationalQuotes[0])
   const [isLiked, setIsLiked] = useState(false)
 
@@ -77,7 +73,7 @@ export function QuoteGenerator({ user }: QuoteGeneratorProps) {
         console.log("Error sharing:", error)
       }
     } else {
-      // Fallback: copy to clipboard
+      // Fallback for browsers that don't support Web Share API
       navigator.clipboard.writeText(`"${currentQuote.text}" - ${currentQuote.author}`)
     }
   }
@@ -96,34 +92,19 @@ export function QuoteGenerator({ user }: QuoteGeneratorProps) {
         </div>
 
         <div className="flex justify-center space-x-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={generateNewQuote}
-            className="flex items-center space-x-2 bg-transparent"
-          >
-            <RefreshCw className="h-4 w-4" />
-            <span>New Quote</span>
+          <Button onClick={generateNewQuote} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            New Quote
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleLike}
-            className={`flex items-center space-x-2 ${isLiked ? "text-red-500" : ""}`}
-          >
-            <Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
-            <span>{isLiked ? "Liked" : "Like"}</span>
+          <Button onClick={handleLike} variant={isLiked ? "default" : "outline"} size="sm">
+            <Heart className={`h-4 w-4 mr-2 ${isLiked ? "fill-current" : ""}`} />
+            {isLiked ? "Liked" : "Like"}
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleShare}
-            className="flex items-center space-x-2 bg-transparent"
-          >
-            <Share2 className="h-4 w-4" />
-            <span>Share</span>
+          <Button onClick={handleShare} variant="outline" size="sm">
+            <Share2 className="h-4 w-4 mr-2" />
+            Share
           </Button>
         </div>
       </CardContent>
