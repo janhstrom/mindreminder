@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@supabase/ssr"
+import { createBrowserClient } from "@supabase/auth-helpers-nextjs"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")

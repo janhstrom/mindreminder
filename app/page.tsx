@@ -8,8 +8,7 @@ import { redirect } from "next/navigation"
 import { Bell, Target, Heart, Brain, TrendingUp, CheckCircle, ArrowRight, Star, Users, Zap } from "lucide-react"
 
 export default async function HomePage() {
-  const cookieStore = cookies() // Get the cookie store
-  const supabase = createClient(cookieStore) // Pass it to the Supabase client
+  const supabase = createClient()
 
   const {
     data: { user },
