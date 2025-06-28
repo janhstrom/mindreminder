@@ -15,6 +15,7 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
+    console.error("Sign in error:", error)
     redirect("/login?message=Could not authenticate user")
   }
 
@@ -33,11 +34,12 @@ export async function signUp(formData: FormData) {
   const { error } = await supabase.auth.signUp(data)
 
   if (error) {
+    console.error("Sign up error:", error)
     redirect("/register?message=Error creating account")
   }
 
   revalidatePath("/", "layout")
-  redirect("/dashboard")
+  redirect("/register?message=Check email to continue sign up process")
 }
 
 export async function signOut() {
