@@ -10,7 +10,10 @@ export function useAuth() {
 
   useEffect(() => {
     const supabase = createClient()
-    if (!supabase) return
+    if (!supabase) {
+      setLoading(false)
+      return
+    }
 
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -38,3 +41,6 @@ export function useAuth() {
 
   return { user, loading, signOut }
 }
+
+// Export default for compatibility
+export default useAuth

@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
     },
   )
 
-  // This will refresh session if expired - required for Server Components
+  // Refresh session if expired
   await supabase.auth.getUser()
 
   return response
@@ -38,7 +38,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
+     * - sw.js (service worker)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }

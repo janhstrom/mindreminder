@@ -1,44 +1,26 @@
-import { createServerClient } from "@supabase/ssr"
-import { NextResponse, type NextRequest } from "next/server"
+import { createBrowserClient } from "@supabase/ssr"
+import type { Database } from "./types"
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  })
+let client: ReturnType<typeof createBrowserClient<Database>> | undefined
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options)
-          })
-        },
-      },
-    },
-  )
+export function createClient() {
+  if (typeof window === "undefined") {
+    // Return a dummy client for SSR
+    return null as any
+  }
 
-  // This will refresh session if expired - required for Server Components
-  await supabase.auth.getUser()
+  if (!client) {
+    client = createBrowserClient<Database>(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+  }
 
-  return response
+  return client
 }
 
-export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
-  ],
-}
+// Export the singleton instance that your existing code expects
+export const supabase = createClient()
+
+// Export default for compatibility
+export default createClient

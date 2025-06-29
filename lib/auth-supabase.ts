@@ -1,68 +1,38 @@
 import { supabase } from "./supabase/client"
+import type { User } from "@supabase/supabase-js"
 
-export interface User {
-  id: string
-  email: string
-  name?: string
-}
+export class SupabaseAuthService {
+  static async signUp(email: string, password: string) {
+    if (!supabase) throw new Error("Supabase client not available")
+    return await supabase.auth.signUp({ email, password })
+  }
 
-export interface AuthState {
-  user: User | null
-  loading: boolean
-}
+  static async signIn(email: string, password: string) {
+    if (!supabase) throw new Error("Supabase client not available")
+    return await supabase.auth.signInWithPassword({ email, password })
+  }
 
-export const authService = {
-  async signUp(email: string, password: string, name?: string) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name || "",
-        },
-      },
-    })
+  static async signOut() {
+    if (!supabase) throw new Error("Supabase client not available")
+    return await supabase.auth.signOut()
+  }
 
-    if (error) throw error
-    return data
-  },
-
-  async signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (error) throw error
-    return data
-  },
-
-  async signOut() {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
-  },
-
-  async getCurrentUser() {
+  static async getUser(): Promise<User | null> {
+    if (!supabase) return null
     const {
       data: { user },
-      error,
     } = await supabase.auth.getUser()
-    if (error) throw error
     return user
-  },
+  }
 
-  onAuthStateChange(callback: (user: User | null) => void) {
-    return supabase.auth.onAuthStateChange((event, session) => {
-      const user = session?.user
-      callback(
-        user
-          ? {
-              id: user.id,
-              email: user.email!,
-              name: user.user_metadata?.name,
-            }
-          : null,
-      )
-    })
-  },
+  static async getSession() {
+    if (!supabase) return null
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    return session
+  }
 }
+
+// Export default instance
+export default SupabaseAuthService
