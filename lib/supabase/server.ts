@@ -1,18 +1,18 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { cookies as nextCookies } from "next/headers"
 
-/**
- * Server-side Supabase helper (RSC-safe)
- *
- *  • reads the cookie store only once – no promises in render phase
- *  • provides explicit get / set / remove so createServerClient never
- *    calls `cookies()` by itself (which would suspend).
- */
+// Don’t make this a singleton — each server request must have its own isolated Supabase client.
 export function createClient() {
-  // `cookies()` is sync; call it once and re-use.
   const cookieStore = nextCookies()
 
-  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Missing Supabase environment variables")
+  }
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       get(name: string) {
         return cookieStore.get(name)?.value
@@ -21,14 +21,14 @@ export function createClient() {
         try {
           cookieStore.set({ name, value, ...options })
         } catch {
-          /* called from a RSC – ignore */
+          // called from a React Server Component or edge runtime – safe to ignore
         }
       },
       remove(name: string, options: CookieOptions) {
         try {
           cookieStore.set({ name, value: "", ...options })
         } catch {
-          /* called from a RSC – ignore */
+          // same – safe to ignore in RSCs
         }
       },
     },
