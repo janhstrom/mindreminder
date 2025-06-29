@@ -1,173 +1,85 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState, useCallback } from "react"
-import { authService, type AuthUser } from "@/lib/auth-supabase" // Ensure this path is correct
-import { useRouter, usePathname } from "next/navigation"
+
+import { createContext, useContext, useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { authService, type User } from "@/lib/auth-supabase"
 
 interface AuthContextType {
-  user: AuthUser | null
-  loading: boolean // General loading for initial auth state detection
-  operationLoading: boolean // Specific loading for signIn, signUp, signOut operations
-  error: Error | null
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<void>
+  user: User | null
+  loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signInWithGoogle: () => Promise<void>
+  signUp: (email: string, password: string, name?: string) => Promise<void>
   signOut: () => Promise<void>
-  updateProfile: typeof authService.updateProfile
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [operationLoading, setOperationLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
   const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
-    setLoading(true)
+    // Get initial user
     authService
       .getCurrentUser()
-      .then((currentUser) => {
-        setUser(currentUser)
-        console.log("AuthProvider (mount): Current user:", currentUser?.email)
+      .then((user) => {
+        if (user) {
+          setUser({
+            id: user.id,
+            email: user.email!,
+            name: user.user_metadata?.name,
+          })
+        }
       })
-      .catch((err) => {
-        console.error("AuthProvider (mount): Error getting current user:", err)
-      })
-      .finally(() => {
-        setLoading(false)
-      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
 
+    // Listen for auth changes
     const {
       data: { subscription },
-    } = authService.onAuthStateChange((appUser, session) => {
-      // session is now also passed
-      console.log(`AuthProvider (onAuthStateChange): Event received. User: ${appUser?.email}, Path: ${pathname}`)
-      // The rest of the onAuthStateChange logic using appUser remains similar
-      // setUser(appUser) is already being done based on appUser
-      // ... (keep existing redirection logic) ...
-      setUser(appUser) // Explicitly set user state
+    } = authService.onAuthStateChange((user) => {
+      setUser(user)
       setLoading(false)
-
-      const isAuthPage = pathname === "/login" || pathname === "/register"
-      const isPublicPage = isAuthPage || pathname === "/"
-
-      if (appUser && isAuthPage) {
-        console.log("AuthProvider (onAuthStateChange): User authenticated and on auth page, redirecting to /dashboard")
-        router.push("/dashboard")
-      } else if (!appUser && !isPublicPage) {
-        console.log(
-          "AuthProvider (onAuthStateChange): User not authenticated and not on public page, redirecting to /login",
-        )
-        router.push("/login")
-      }
     })
 
-    return () => {
-      subscription?.unsubscribe()
-    }
-  }, [pathname, router])
-
-  const handleSignIn = useCallback(async (email: string, password: string) => {
-    setOperationLoading(true)
-    setError(null)
-    try {
-      const response = await authService.signIn(email, password)
-      console.log("AuthProvider (handleSignIn): authService response:", response)
-
-      if (response.error) {
-        throw response.error
-      }
-      if (response.user) {
-        console.log("AuthProvider (handleSignIn): User signed in successfully via authService:", response.user.email)
-        // onAuthStateChange should handle setting the user state and redirection
-      } else {
-        throw new Error("Sign-in successful according to authService but no user data returned to AuthProvider.")
-      }
-    } catch (err: any) {
-      console.error("AuthProvider (handleSignIn): SignIn error caught", err)
-      setError(err instanceof Error ? err : new Error(err.message || "Sign-in failed"))
-    } finally {
-      setOperationLoading(false)
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
-  const handleSignUp = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
-    setOperationLoading(true)
-    setError(null)
+  const signIn = async (email: string, password: string) => {
     try {
-      const response = await authService.signUp(email, password, firstName, lastName)
-      console.log("AuthProvider (handleSignUp): authService response:", response)
-
-      if (response.error) {
-        throw response.error
-      }
-      if (response.user) {
-        console.log("AuthProvider (handleSignUp): User signed up successfully via authService:", response.user.email)
-        // onAuthStateChange will handle setting the user state and redirection
-      } else {
-        console.warn("AuthProvider (handleSignUp): SignUp call to authService returned no user and no error.")
-      }
-    } catch (err: any) {
-      console.error("AuthProvider (handleSignUp): SignUp error caught", err)
-      setError(err instanceof Error ? err : new Error(err.message || "Sign-up failed"))
-    } finally {
-      setOperationLoading(false)
+      await authService.signIn(email, password)
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Sign in error:", error)
+      throw error
     }
-  }, [])
-
-  const handleSignInWithGoogle = useCallback(async () => {
-    setOperationLoading(true)
-    setError(null)
-    try {
-      await authService.signInWithGoogle()
-      // onAuthStateChange will handle redirect
-    } catch (err: any) {
-      console.error("AuthProvider (handleSignInWithGoogle): Google SignIn error", err)
-      setError(err instanceof Error ? err : new Error(err.message || "Google Sign-in failed"))
-      throw err
-    } finally {
-      setOperationLoading(false)
-    }
-  }, [])
-
-  const handleSignOut = useCallback(async () => {
-    console.log("AuthProvider: Attempting sign out...")
-    setOperationLoading(true)
-    setError(null)
-    try {
-      const { error } = await authService.signOut()
-      if (error) {
-        throw error
-      }
-      console.log("AuthProvider: authService.signOut completed.")
-      // onAuthStateChange will set user to null and handle redirect.
-    } catch (err: any) {
-      console.error("AuthProvider: SignOut error", err)
-      setError(err instanceof Error ? err : new Error(err.message || "Sign out failed"))
-    } finally {
-      setOperationLoading(false)
-      console.log("AuthProvider: Sign out operation finished (finally block).")
-    }
-  }, [])
-
-  const contextValue: AuthContextType = {
-    user,
-    loading,
-    operationLoading,
-    error,
-    signIn: handleSignIn,
-    signUp: handleSignUp,
-    signInWithGoogle: handleSignInWithGoogle,
-    signOut: handleSignOut,
-    updateProfile: authService.updateProfile,
   }
 
-  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
+  const signUp = async (email: string, password: string, name?: string) => {
+    try {
+      await authService.signUp(email, password, name)
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Sign up error:", error)
+      throw error
+    }
+  }
+
+  const signOut = async () => {
+    try {
+      await authService.signOut()
+      setUser(null)
+      router.push("/")
+    } catch (error) {
+      console.error("Sign out error:", error)
+      throw error
+    }
+  }
+
+  return <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

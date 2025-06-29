@@ -10,6 +10,18 @@ self.addEventListener("install", (event) => {
 
 // Fetch event - serve from cache when offline
 self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url)
+
+  // Skip service worker for API routes and specific paths
+  if (
+    url.pathname.startsWith("/api/") ||
+    url.pathname === "/reminders" ||
+    url.pathname === "/micro-actions" ||
+    url.pathname.endsWith(".json")
+  ) {
+    return // Let it go straight to network/Next.js
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
       // Return cached version or fetch from network

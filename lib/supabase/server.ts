@@ -1,34 +1,21 @@
-import { createServerClient, type CookieOptions } from "@supabase/ssr"
-import { cookies as nextCookies } from "next/headers"
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
-// Don’t make this a singleton — each server request must have its own isolated Supabase client.
 export function createClient() {
-  const cookieStore = nextCookies()
+  const cookieStore = cookies()
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error("Missing Supabase environment variables")
-  }
-
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
+  return createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
     cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value
+      getAll() {
+        return cookieStore.getAll()
       },
-      set(name: string, value: string, options: CookieOptions) {
+      setAll(cookiesToSet) {
         try {
-          cookieStore.set({ name, value, ...options })
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options))
         } catch {
-          // called from a React Server Component or edge runtime – safe to ignore
-        }
-      },
-      remove(name: string, options: CookieOptions) {
-        try {
-          cookieStore.set({ name, value: "", ...options })
-        } catch {
-          // same – safe to ignore in RSCs
+          // The `setAll` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
         }
       },
     },

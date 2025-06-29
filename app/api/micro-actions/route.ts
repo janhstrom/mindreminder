@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, category, isCompleted = false } = body
+    const { title, description, category, estimatedMinutes, isActive = true } = body
 
     if (!title) {
       return NextResponse.json({ error: "Title is required" }, { status: 400 })
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest) {
         title,
         description,
         category,
-        is_completed: isCompleted,
+        estimated_minutes: estimatedMinutes,
+        is_active: isActive,
       })
       .select()
       .single()
