@@ -1,17 +1,22 @@
-import { createClient } from "@supabase/supabase-js"
+import { createBrowserClient } from "@supabase/ssr"
+import type { Database } from "./types"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+let supabaseClient: ReturnType<typeof createBrowserClient<Database>> | null = null
 
-// Singleton pattern to prevent multiple instances
-let supabaseInstance: ReturnType<typeof createClient> | null = null
-
-export function createSupabaseClient() {
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey)
+export function createClient() {
+  // Return existing client if it exists
+  if (supabaseClient) {
+    return supabaseClient
   }
-  return supabaseInstance
+
+  // Create new client only if we don't have one
+  supabaseClient = createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  )
+
+  return supabaseClient
 }
 
-// Export the singleton instance
-export const supabase = createSupabaseClient()
+// Export a function that always returns the same instance
+export const supabase = createClient()

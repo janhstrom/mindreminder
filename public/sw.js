@@ -1,117 +1,122 @@
-// Service Worker for MindReMinder Push Notifications
-
 const CACHE_NAME = "mindreminder-v1"
-const urlsToCache = ["/", "/dashboard", "/manifest.json"]
+const STATIC_CACHE_NAME = "mindreminder-static-v1"
 
-// Install event - cache resources
+// URLs to cache on install
+const STATIC_URLS = ["/", "/manifest.json", "/offline"]
+
+// API routes that should not be cached
+const API_ROUTES = ["/api/reminders", "/api/micro-actions", "/api/auth"]
+
+// App routes (pages) that exist
+const APP_ROUTES = ["/", "/reminders", "/micro-actions", "/settings", "/login", "/signup"]
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(urlsToCache)))
-})
-
-// Fetch event - serve from cache when offline
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url)
-
-  // Skip service worker for API routes and specific paths
-  if (
-    url.pathname.startsWith("/api/") ||
-    url.pathname === "/reminders" ||
-    url.pathname === "/micro-actions" ||
-    url.pathname.endsWith(".json")
-  ) {
-    return // Let it go straight to network/Next.js
-  }
-
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Return cached version or fetch from network
-      return response || fetch(event.request)
-    }),
+  event.waitUntil(
+    caches
+      .open(STATIC_CACHE_NAME)
+      .then((cache) => cache.addAll(STATIC_URLS))
+      .then(() => self.skipWaiting()),
   )
 })
 
-// Push event - handle incoming push notifications
-self.addEventListener("push", (event) => {
-  console.log("Push event received:", event)
-
-  let notificationData = {
-    title: "MindReMinder",
-    body: "You have a new reminder!",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: "mindreminder-notification",
-    requireInteraction: false,
-    actions: [
-      {
-        action: "view",
-        title: "View Reminder",
-        icon: "/icon-192.png",
-      },
-      {
-        action: "dismiss",
-        title: "Dismiss",
-        icon: "/icon-192.png",
-      },
-    ],
-    data: {
-      url: "/dashboard",
-      reminderId: null,
-    },
-  }
-
-  // Parse push data if available
-  if (event.data) {
-    try {
-      const pushData = event.data.json()
-      notificationData = { ...notificationData, ...pushData }
-    } catch (error) {
-      console.error("Error parsing push data:", error)
-    }
-  }
-
-  event.waitUntil(self.registration.showNotification(notificationData.title, notificationData))
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME && cacheName !== STATIC_CACHE_NAME) {
+              return caches.delete(cacheName)
+            }
+          }),
+        )
+      })
+      .then(() => self.clients.claim()),
+  )
 })
 
-// Notification click event
-self.addEventListener("notificationclick", (event) => {
-  console.log("Notification clicked:", event)
+self.addEventListener("fetch", (event) => {
+  const { request } = event
+  const url = new URL(request.url)
 
-  event.notification.close()
-
-  const action = event.action
-  const notificationData = event.notification.data || {}
-
-  if (action === "dismiss") {
-    // Just close the notification
+  // Skip cross-origin requests
+  if (url.origin !== location.origin) {
     return
   }
 
-  // Default action or 'view' action - open the app
-  const urlToOpen = notificationData.url || "/dashboard"
+  // Handle API routes - always go to network
+  if (API_ROUTES.some((route) => url.pathname.startsWith(route))) {
+    event.respondWith(
+      fetch(request).catch(() => {
+        return new Response(JSON.stringify({ error: "Network unavailable" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        })
+      }),
+    )
+    return
+  }
 
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      // Check if app is already open
-      for (const client of clientList) {
-        if (client.url.includes(urlToOpen) && "focus" in client) {
-          return client.focus()
+  // Handle app routes (pages)
+  if (request.method === "GET") {
+    // For navigation requests, try network first, then cache
+    if (request.mode === "navigate") {
+      event.respondWith(
+        fetch(request)
+          .then((response) => {
+            // Cache successful responses
+            if (response.status === 200) {
+              const responseClone = response.clone()
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, responseClone)
+              })
+            }
+            return response
+          })
+          .catch(() => {
+            // Try to serve from cache
+            return caches.match(request).then((cachedResponse) => {
+              if (cachedResponse) {
+                return cachedResponse
+              }
+              // Fallback to offline page if available
+              return caches.match("/offline")
+            })
+          }),
+      )
+      return
+    }
+
+    // For other GET requests (assets, etc.)
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse
         }
-      }
-
-      // Open new window/tab
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen)
-      }
-    }),
-  )
-})
-
-// Background sync for offline functionality
-self.addEventListener("sync", (event) => {
-  if (event.tag === "background-sync") {
-    event.waitUntil(
-      // Handle background sync tasks
-      console.log("Background sync triggered"),
+        return fetch(request).then((response) => {
+          // Cache successful responses
+          if (response.status === 200) {
+            const responseClone = response.clone()
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone)
+            })
+          }
+          return response
+        })
+      }),
     )
   }
 })
+
+// Handle background sync for offline actions
+self.addEventListener("sync", (event) => {
+  if (event.tag === "background-sync") {
+    event.waitUntil(doBackgroundSync())
+  }
+})
+
+async function doBackgroundSync() {
+  // Handle any queued actions when back online
+  console.log("Background sync triggered")
+}
